@@ -36,35 +36,45 @@ export async function POST(req: NextRequest) {
 
       if (restaurantId) {
         const serviceClient = createServiceClient();
-        const idempotencyKey = `failed_${paymentId}`;
 
-        const { data: existingPayment } = await serviceClient
-          .from('payments')
+        // Validate restaurant exists before writing to database
+        const { data: restCheck } = await serviceClient
+          .from('restaurants')
           .select('id')
-          .eq('idempotency_key', idempotencyKey)
+          .eq('id', restaurantId)
           .maybeSingle();
 
-        if (!existingPayment) {
-          await serviceClient.from('payments').insert({
-            restaurant_id: restaurantId,
-            provider: 'razorpay',
-            external_payment_id: paymentId,
-            idempotency_key: idempotencyKey,
-            amount_paise: amountPaise,
-            status: 'failed',
-            raw_webhook_payload: event,
-          });
+        if (restCheck) {
+          const idempotencyKey = `failed_${paymentId}`;
 
-          await serviceClient.from('audit_logs').insert({
-            restaurant_id: restaurantId,
-            action: 'payment_failed_webhook',
-            metadata: {
-              payment_id: paymentId,
-              error_code: paymentEntity?.error_code,
-              error_description: paymentEntity?.error_description,
-              error_reason: paymentEntity?.error_reason,
-            },
-          });
+          const { data: existingPayment } = await serviceClient
+            .from('payments')
+            .select('id')
+            .eq('idempotency_key', idempotencyKey)
+            .maybeSingle();
+
+          if (!existingPayment) {
+            await serviceClient.from('payments').insert({
+              restaurant_id: restaurantId,
+              provider: 'razorpay',
+              external_payment_id: paymentId,
+              idempotency_key: idempotencyKey,
+              amount_paise: amountPaise,
+              status: 'failed',
+              raw_webhook_payload: event,
+            });
+
+            await serviceClient.from('audit_logs').insert({
+              restaurant_id: restaurantId,
+              action: 'payment_failed_webhook',
+              metadata: {
+                payment_id: paymentId,
+                error_code: paymentEntity?.error_code,
+                error_description: paymentEntity?.error_description,
+                error_reason: paymentEntity?.error_reason,
+              },
+            });
+          }
         }
       }
 
@@ -75,21 +85,69 @@ export async function POST(req: NextRequest) {
     if (eventType === 'payment.captured' || eventType === 'order.paid') {
       const paymentEntity = event.payload?.payment?.entity;
       if (!paymentEntity) {
-        return NextResponse.json({ received: true, skipped: 'No payment entity' });
+        return NextResponse.json({ error: 'No payment entity in webhook payload' }, { status: 400 });
       }
 
       const paymentId = paymentEntity.id;
+      const orderId = paymentEntity.order_id;
+      const currency = paymentEntity.currency;
       const amountPaise = paymentEntity.amount;
       const restaurantId = paymentEntity.notes?.restaurantId;
 
-      if (!restaurantId) {
+      // 3. Validate payment ID and Order/Payment relationship
+      if (!paymentId || typeof paymentId !== 'string') {
+        return NextResponse.json({ error: 'Missing or invalid payment id' }, { status: 400 });
+      }
+
+      if (!orderId || typeof orderId !== 'string' || !orderId.startsWith('order_')) {
+        console.warn('Webhook rejected: Payment missing valid order_id relationship:', { paymentId, orderId });
+        return NextResponse.json({ error: 'Missing or invalid order relationship' }, { status: 400 });
+      }
+
+      // 4. Validate expected currency (must be INR)
+      if (!currency || currency.toUpperCase() !== 'INR') {
+        console.warn('Webhook rejected: Invalid currency:', { paymentId, currency });
+        return NextResponse.json({ error: 'Invalid currency: expected INR' }, { status: 400 });
+      }
+
+      // 5. Validate expected amount (must be positive integer, minimum ₹1 / 100 paise)
+      if (!amountPaise || typeof amountPaise !== 'number' || amountPaise < 100) {
+        console.warn('Webhook rejected: Invalid payment amount:', { paymentId, amountPaise });
+        return NextResponse.json({ error: 'Invalid payment amount' }, { status: 400 });
+      }
+
+      const expectedAmount = paymentEntity.notes?.expectedAmount
+        ? Number(paymentEntity.notes.expectedAmount)
+        : null;
+      if (expectedAmount && amountPaise < expectedAmount) {
+        console.warn('Webhook rejected: Amount paid is less than expected:', {
+          paymentId,
+          amountPaise,
+          expectedAmount,
+        });
+        return NextResponse.json({ error: 'Payment amount mismatch' }, { status: 400 });
+      }
+
+      // 6. Validate restaurant existence
+      if (!restaurantId || typeof restaurantId !== 'string') {
         console.warn('Webhook received payment without restaurantId in notes:', paymentId);
-        return NextResponse.json({ received: true, skipped: 'No restaurantId' });
+        return NextResponse.json({ error: 'Missing restaurantId in payment notes' }, { status: 400 });
       }
 
       const serviceClient = createServiceClient();
 
-      // 3. Idempotency Check: check if already processed
+      const { data: restaurant, error: restError } = await serviceClient
+        .from('restaurants')
+        .select('id, slug, subscription_end_date, published_at')
+        .eq('id', restaurantId)
+        .maybeSingle();
+
+      if (restError || !restaurant) {
+        console.error('Webhook rejected: Restaurant not found for webhook activation:', restaurantId);
+        return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
+      }
+
+      // 7. Idempotency Check & Database-level uniqueness for payments
       const { data: existingPayment } = await serviceClient
         .from('payments')
         .select('id, status')
@@ -100,29 +158,33 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true, message: 'Already processed' });
       }
 
-      // 4. Record payment in payments table
-      await serviceClient.from('payments').insert({
-        restaurant_id: restaurantId,
-        provider: 'razorpay',
-        external_payment_id: paymentId,
-        idempotency_key: paymentId,
-        amount_paise: amountPaise || YEARLY_PLAN_PRICE_PAISE,
-        status: 'succeeded',
-        raw_webhook_payload: event,
-      });
+      // 8. Record payment in payments table
+      if (!existingPayment) {
+        const { error: insertPayErr } = await serviceClient.from('payments').insert({
+          restaurant_id: restaurantId,
+          provider: 'razorpay',
+          external_payment_id: paymentId,
+          idempotency_key: paymentId,
+          amount_paise: amountPaise,
+          status: 'succeeded',
+          raw_webhook_payload: event,
+        });
 
-      // 5. Fetch restaurant to compute new subscription dates
-      const { data: restaurant } = await serviceClient
-        .from('restaurants')
-        .select('id, slug, subscription_end_date, published_at')
-        .eq('id', restaurantId)
-        .single();
-
-      if (!restaurant) {
-        console.error('Restaurant not found for webhook activation:', restaurantId);
-        return NextResponse.json({ received: true, error: 'Restaurant not found' });
+        if (insertPayErr && !insertPayErr.message.includes('duplicate')) {
+          console.error('Failed to insert payment record:', insertPayErr.message);
+        }
+      } else {
+        await serviceClient
+          .from('payments')
+          .update({
+            status: 'succeeded',
+            amount_paise: amountPaise,
+            raw_webhook_payload: event,
+          })
+          .eq('id', existingPayment.id);
       }
 
+      // 9. Compute subscription duration dates
       const now = new Date();
       let baseDate = now;
       if (restaurant.subscription_end_date) {
@@ -135,7 +197,7 @@ export async function POST(req: NextRequest) {
       const newEndDate = new Date(baseDate.getTime() + YEARLY_PLAN_DURATION_DAYS * 24 * 60 * 60 * 1000);
       const formattedEndDate = newEndDate.toISOString().split('T')[0];
 
-      // 6. Ensure default plan exists
+      // 10. Ensure default plan exists
       let planId: string | null = null;
       const { data: planData } = await serviceClient
         .from('plans')
@@ -161,17 +223,26 @@ export async function POST(req: NextRequest) {
         if (createdPlan) planId = createdPlan.id;
       }
 
+      // 11. Database-level uniqueness for subscriptions
       if (planId) {
-        await serviceClient.from('subscriptions').insert({
-          restaurant_id: restaurantId,
-          plan_id: planId,
-          status: 'active',
-          started_at: now.toISOString(),
-          expires_at: newEndDate.toISOString(),
-          renewal_amount_paise: YEARLY_PLAN_PRICE_PAISE,
-          payment_provider: 'razorpay',
-          external_payment_id: paymentId,
-        });
+        const { data: existingSub } = await serviceClient
+          .from('subscriptions')
+          .select('id')
+          .eq('external_payment_id', paymentId)
+          .maybeSingle();
+
+        if (!existingSub) {
+          await serviceClient.from('subscriptions').insert({
+            restaurant_id: restaurantId,
+            plan_id: planId,
+            status: 'active',
+            started_at: now.toISOString(),
+            expires_at: newEndDate.toISOString(),
+            renewal_amount_paise: amountPaise,
+            payment_provider: 'razorpay',
+            external_payment_id: paymentId,
+          });
+        }
       }
 
       // 7. Update restaurant status and subscription_end_date
