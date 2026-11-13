@@ -134,7 +134,7 @@ export async function createRestaurant(input: CreateRestaurantInput) {
       trial_ends_at: null, // Trial timer starts only when owner publishes
       published_at: null,  // Nullable with NO default timestamp
       onboarding_source: 'self_serve',
-      onboarding_current_step: 1,
+      onboarding_current_step: 2,
       onboarding_status: 'in_progress',
       branding: data.branding,
       contact: data.contact,
@@ -203,7 +203,7 @@ export async function updateRestaurantDetails(
   // Verify ownership
   const { data: restaurant } = await supabase
     .from('restaurants')
-    .select('id, owner_profile_id')
+    .select('id, owner_profile_id, branding, contact')
     .eq('id', restaurantId)
     .single();
 
@@ -216,17 +216,39 @@ export async function updateRestaurantDetails(
   if (input.name) {
     updates.name = input.name.trim();
   }
+  if (input.tagline !== undefined) {
+    const existingBranding = (restaurant.branding as Record<string, unknown>) || {};
+    const candidateBranding = {
+      ...existingBranding,
+      tagline: input.tagline.trim(),
+    };
+    const parsedBranding = RestaurantBrandingSchema.safeParse(candidateBranding);
+    if (!parsedBranding.success) {
+      return { success: false, error: parsedBranding.error.issues[0]?.message };
+    }
+    updates.branding = parsedBranding.data;
+  }
   if (input.contact) {
     const parsed = RestaurantContactSchema.safeParse(input.contact);
-    if (parsed.success) updates.contact = parsed.data;
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
+    const existingContact = (restaurant.contact as Record<string, unknown>) || {};
+    updates.contact = {
+      ...existingContact,
+      ...parsed.data,
+      email: parsed.data.email !== null && parsed.data.email !== undefined
+        ? parsed.data.email
+        : (existingContact.email || null),
+    };
   }
   if (input.address) {
     const parsed = RestaurantAddressSchema.safeParse(input.address);
-    if (parsed.success) updates.address = parsed.data;
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
+    updates.address = parsed.data;
   }
   if (input.social_links) {
     const parsed = RestaurantSocialLinksSchema.safeParse(input.social_links);
-    if (parsed.success) updates.social_links = parsed.data;
+    if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
+    updates.social_links = parsed.data;
   }
 
   const { error } = await supabase
@@ -567,7 +589,7 @@ export async function saveOnboardingStepAction(
 
   const { data: restaurant } = await supabase
     .from('restaurants')
-    .select('id, owner_profile_id, onboarding_current_step, onboarding_status')
+    .select('id, owner_profile_id, onboarding_current_step, onboarding_status, branding, contact')
     .eq('id', restaurantId)
     .is('archived_at', null)
     .maybeSingle();
@@ -576,34 +598,103 @@ export async function saveOnboardingStepAction(
     return { success: false, error: 'Forbidden: You do not own this restaurant.' };
   }
 
-  const updates: Record<string, unknown> = {
-    onboarding_current_step: Math.min(5, Math.max(step, restaurant.onboarding_current_step || 1)),
-  };
+  // Validate every supplied object before updating. On failure, return the error and do not change onboarding_current_step.
+  const updates: Record<string, unknown> = {};
 
-  if (data.name) updates.name = data.name.trim();
-  if (data.food_type !== undefined) updates.food_type = data.food_type ? data.food_type.trim() : null;
-  if (data.tagline) updates.tagline = data.tagline.trim();
+  if (data.name !== undefined) {
+    const trimmed = data.name.trim();
+    if (trimmed.length < 2) {
+      return { success: false, error: 'Restaurant name must be at least 2 characters.' };
+    }
+    updates.name = trimmed;
+  }
 
-  if (data.contact) {
+  if (data.food_type !== undefined) {
+    updates.food_type = data.food_type ? data.food_type.trim() : null;
+  }
+
+  if (data.contact !== undefined) {
     const parsed = RestaurantContactSchema.safeParse(data.contact);
-    if (parsed.success) updates.contact = parsed.data;
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: `Invalid contact: ${parsed.error.issues[0]?.message || 'validation failed'}`,
+      };
+    }
+    const existingContact = (restaurant.contact as Record<string, unknown>) || {};
+    updates.contact = {
+      ...existingContact,
+      ...parsed.data,
+      email: parsed.data.email !== null && parsed.data.email !== undefined
+        ? parsed.data.email
+        : (existingContact.email || null),
+    };
   }
-  if (data.address) {
+
+  if (data.address !== undefined) {
     const parsed = RestaurantAddressSchema.safeParse(data.address);
-    if (parsed.success) updates.address = parsed.data;
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: `Invalid address: ${parsed.error.issues[0]?.message || 'validation failed'}`,
+      };
+    }
+    updates.address = parsed.data;
   }
-  if (data.social_links) {
+
+  if (data.social_links !== undefined) {
     const parsed = RestaurantSocialLinksSchema.safeParse(data.social_links);
-    if (parsed.success) updates.social_links = parsed.data;
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: `Invalid social links: ${parsed.error.issues[0]?.message || 'validation failed'}`,
+      };
+    }
+    updates.social_links = parsed.data;
   }
-  if (data.branding) {
-    const parsed = RestaurantBrandingSchema.safeParse(data.branding);
-    if (parsed.success) updates.branding = parsed.data;
-  }
-  if (data.theme) {
+
+  if (data.theme !== undefined) {
     const parsed = RestaurantThemeSchema.safeParse(data.theme);
-    if (parsed.success) updates.theme = parsed.data;
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: `Invalid theme: ${parsed.error.issues[0]?.message || 'validation failed'}`,
+      };
+    }
+    updates.theme = parsed.data;
   }
+
+  // Tagline: restaurants has no tagline column.
+  // Select branding in the lookup and merge tagline into the branding JSON,
+  // preserving existing keys and any valid branding in the same request.
+  if (data.branding !== undefined || data.tagline !== undefined) {
+    const existingBranding = (restaurant.branding as Record<string, unknown>) || {};
+    const incomingBranding =
+      typeof data.branding === 'object' && data.branding !== null
+        ? (data.branding as Record<string, unknown>)
+        : {};
+
+    const candidateBranding = {
+      ...existingBranding,
+      ...incomingBranding,
+      ...(data.tagline !== undefined ? { tagline: data.tagline.trim() } : {}),
+    };
+
+    const parsedBranding = RestaurantBrandingSchema.safeParse(candidateBranding);
+    if (!parsedBranding.success) {
+      return {
+        success: false,
+        error: `Invalid branding: ${parsedBranding.error.issues[0]?.message || 'validation failed'}`,
+      };
+    }
+    updates.branding = parsedBranding.data;
+  }
+
+  // Only advance onboarding_current_step after all validations pass
+  updates.onboarding_current_step = Math.min(
+    5,
+    Math.max(step, restaurant.onboarding_current_step || 1)
+  );
 
   const { error } = await supabase
     .from('restaurants')

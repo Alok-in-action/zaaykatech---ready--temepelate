@@ -169,7 +169,12 @@ export function OnboardingWizard({
           name: name.trim(),
           food_type: foodType.trim(),
           tagline: tagline.trim(),
-          contact: { phone: phone.trim(), whatsapp: whatsapp.trim() || null, email: null },
+          contact: {
+            ...(initialRestaurant?.contact || {}),
+            phone: phone.trim(),
+            whatsapp: whatsapp.trim() || null,
+            email: initialRestaurant?.contact?.email || null,
+          },
           address: {
             street: street.trim() || null,
             city: city.trim(),
@@ -194,7 +199,12 @@ export function OnboardingWizard({
           name: name.trim(),
           food_type: foodType.trim(),
           tagline: tagline.trim(),
-          contact: { phone: phone.trim(), whatsapp: whatsapp.trim() || null, email: null },
+          contact: {
+            ...(restaurant.contact || {}),
+            phone: phone.trim(),
+            whatsapp: whatsapp.trim() || null,
+            email: restaurant.contact?.email || null,
+          },
           address: {
             street: street.trim() || null,
             city: city.trim(),
@@ -360,7 +370,10 @@ export function OnboardingWizard({
     if (!restaurant) return;
     setLoading(true);
     try {
-      await saveOnboardingStepAction(restaurant.id, 5, {});
+      const res = await saveOnboardingStepAction(restaurant.id, 5, {});
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to advance to step 5.');
+      }
       setStep(5);
     } catch (err: unknown) {
       setError((err as Error).message);
