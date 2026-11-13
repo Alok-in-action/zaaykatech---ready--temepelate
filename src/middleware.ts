@@ -5,6 +5,13 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const hostname = request.headers.get('host') || '';
 
+  // 0. Forward root requests with an auth code directly to /auth/callback
+  if (url.pathname === '/' && url.searchParams.has('code')) {
+    const callbackUrl = new URL('/auth/callback', request.url);
+    callbackUrl.search = url.search;
+    return NextResponse.redirect(callbackUrl);
+  }
+
   // 1. Session refresh with Supabase SSR
   const { response, user } = await updateSession(request);
 
