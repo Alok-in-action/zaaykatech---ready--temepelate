@@ -21,6 +21,17 @@ export async function createSubscriptionOrder(restaurantId: string) {
     return { success: false, error: 'Unauthorized: Please log in to upgrade.' };
   }
 
+  // Resolve authenticated user's profile
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (profileErr || !profile) {
+    return { success: false, error: 'Unauthorized: Owner profile not found.' };
+  }
+
   // Verify ownership
   const { data: restaurant, error: restError } = await supabase
     .from('restaurants')
@@ -28,7 +39,7 @@ export async function createSubscriptionOrder(restaurantId: string) {
     .eq('id', restaurantId)
     .single();
 
-  if (restError || !restaurant || restaurant.owner_profile_id !== user.id) {
+  if (restError || !restaurant || restaurant.owner_profile_id !== profile.id) {
     return { success: false, error: 'Unauthorized: You do not own this restaurant.' };
   }
 
@@ -37,7 +48,7 @@ export async function createSubscriptionOrder(restaurantId: string) {
       restaurantId,
       amountPaise: YEARLY_PLAN_PRICE_PAISE,
       notes: {
-        ownerProfileId: user.id,
+        ownerProfileId: profile.id,
         restaurantSlug: restaurant.slug,
       },
     });
@@ -79,6 +90,17 @@ export async function activateSubscriptionPayment(params: {
     return { success: false, error: 'Unauthorized' };
   }
 
+  // Resolve authenticated user's profile
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (profileErr || !profile) {
+    return { success: false, error: 'Unauthorized: Owner profile not found.' };
+  }
+
   // 1. Verify ownership
   const { data: restaurant, error: restError } = await supabase
     .from('restaurants')
@@ -86,7 +108,7 @@ export async function activateSubscriptionPayment(params: {
     .eq('id', restaurantId)
     .single();
 
-  if (restError || !restaurant || restaurant.owner_profile_id !== user.id) {
+  if (restError || !restaurant || restaurant.owner_profile_id !== profile.id) {
     return { success: false, error: 'Unauthorized: You do not own this restaurant.' };
   }
 
@@ -193,7 +215,7 @@ export async function activateSubscriptionPayment(params: {
 
   // Log audit event
   await serviceClient.from('audit_logs').insert({
-    actor_id: user.id,
+    actor_id: profile.id,
     restaurant_id: restaurantId,
     action: 'subscription_activated',
     metadata: {
