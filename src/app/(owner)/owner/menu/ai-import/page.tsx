@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, CheckCircle2, ChevronRight, UtensilsCrossed } from 'lucide-react';
+import { ArrowLeft, Sparkles, CheckCircle2, ChevronRight, UtensilsCrossed, Scan } from 'lucide-react';
 import { MenuSourceUploader } from '@/components/owner/ai/MenuSourceUploader';
 import { ExtractionReviewTable } from '@/components/owner/ai/ExtractionReviewTable';
 import { Button } from '@/components/ui/button';
@@ -37,8 +37,8 @@ export default function AIMenuImportPage() {
         </Link>
         <ChevronRight className="h-3.5 w-3.5 opacity-60" />
         <span className="text-foreground font-medium flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          <span>AI Menu Import</span>
+          <Scan className="h-3.5 w-3.5 text-primary" />
+          <span>Local OCR Menu Import</span>
         </span>
       </div>
 
@@ -47,14 +47,14 @@ export default function AIMenuImportPage() {
         <div>
           <div className="flex items-center gap-2">
             <span className="p-2 rounded-xl bg-primary/10 text-primary">
-              <Sparkles className="h-5 w-5" />
+              <Scan className="h-5 w-5" />
             </span>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              AI Multi-Modal Menu Ingestion
+              Local OCR Menu Extraction
             </h1>
           </div>
           <p className="text-xs text-muted-foreground mt-2 max-w-xl">
-            Upload your existing menu photo, PDF catalog, or paste raw text. Google Gemini extracts all sections, dishes, prices, and dietary tags into your dashboard ready for review.
+            Upload your existing menu photo, PDF catalog, spreadsheet, or paste raw text. Our local engine (Tesseract.js &amp; Sharp) extracts categories, dishes, prices, and dietary tags directly on the server without any external AI API keys.
           </p>
         </div>
 

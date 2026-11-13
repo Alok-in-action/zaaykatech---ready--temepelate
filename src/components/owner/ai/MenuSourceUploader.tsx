@@ -11,11 +11,10 @@ import {
   Image as ImageIcon,
   Upload,
   AlertCircle,
-  Sparkles,
   FileSpreadsheet,
-  CheckCircle2,
   Loader2,
   Trash2,
+  Scan,
 } from 'lucide-react';
 import { requestAIImportUploadUrl, extractMenuFromSource } from '@/actions/ai-import';
 import type { AIMenuExtractionOutput } from '@/validations/ai';
@@ -102,7 +101,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
           setIsProcessing(false);
           return;
         }
-        setStatusMessage('AI is analyzing menu text and organizing dishes...');
+        setStatusMessage('Parsing menu text and organizing dishes...');
         setUploadProgress(50);
 
         const res = await extractMenuFromSource(restaurantId, {
@@ -126,7 +125,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
           setIsProcessing(false);
           return;
         }
-        setStatusMessage('AI is parsing spreadsheet rows into categories and dishes...');
+        setStatusMessage('Parsing spreadsheet rows into categories and dishes...');
         setUploadProgress(50);
 
         const res = await extractMenuFromSource(restaurantId, {
@@ -167,7 +166,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
       const { uploadUrl, key } = presignRes.data;
 
       // Direct R2 upload via PUT
-      setStatusMessage('Uploading document to Cloudflare R2 storage...');
+      setStatusMessage('Saving original file to secure Cloudflare R2 vault...');
       setUploadProgress(40);
 
       try {
@@ -182,9 +181,13 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
         console.warn('Direct R2 PUT failed (likely mock/local mode):', uploadErr);
       }
 
-      // Convert to base64 for reliable server extraction
-      setStatusMessage('Scanning document with Google Gemini multi-modal OCR...');
-      setUploadProgress(70);
+      // Convert to base64 for local server OCR
+      setStatusMessage(
+        selectedFile.type === 'application/pdf'
+          ? 'Reading PDF document text & layers...'
+          : 'Preprocessing image with Sharp (grayscale & contrast)...'
+      );
+      setUploadProgress(65);
 
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -197,7 +200,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
         reader.readAsDataURL(selectedFile);
       });
 
-      setStatusMessage('Structuring categories, prices, variants, and dietary tags...');
+      setStatusMessage('Running local Tesseract OCR & detecting categories, prices and variants...');
       setUploadProgress(85);
 
       const extractionRes = await extractMenuFromSource(restaurantId, {
@@ -208,15 +211,17 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
       });
 
       if (!extractionRes.success || !extractionRes.data) {
-        throw new Error(extractionRes.error || 'Failed to extract menu from document.');
+        throw new Error(extractionRes.error || 'We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.');
       }
 
       setUploadProgress(100);
-      setStatusMessage('Extraction complete! Review your menu below.');
+      setStatusMessage('OCR extraction complete! Review your menu below.');
       onExtractionSuccess(extractionRes.data);
     } catch (err: any) {
       console.error('Extraction error:', err);
-      setErrorMessage(err.message || 'An unexpected error occurred during extraction.');
+      setErrorMessage(
+        err.message || 'We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.'
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -226,12 +231,12 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
     <Card className="border border-border/80 shadow-sm">
       <CardHeader>
         <div className="flex items-center gap-2 text-primary">
-          <Sparkles className="h-5 w-5" />
-          <CardTitle className="text-xl">Import Menu with Google Gemini AI</CardTitle>
+          <Scan className="h-5 w-5" />
+          <CardTitle className="text-xl">Import Menu with Local OCR</CardTitle>
         </div>
         <CardDescription>
-          Upload a photo of your printed menu, a PDF brochure, a spreadsheet, or paste raw text.
-          Gemini will automatically identify categories, items, prices, variants, and dietary badges.
+          Upload a menu photo, PDF document, spreadsheet, or paste raw text.
+          Our local engine (powered by Tesseract.js &amp; Sharp) runs directly on your server — <strong>no API keys required</strong>.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -273,7 +278,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
                   Click to browse or drag and drop your menu photo
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Supported formats: JPG, PNG, WebP (Max 10 MB)
+                  Supported formats: JPG, PNG, WebP (Max 10 MB) • Enhanced with Sharp &amp; Tesseract.js
                 </p>
                 <input
                   ref={fileInputRef}
@@ -292,7 +297,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
                     <div>
                       <p className="font-medium text-sm text-foreground">{selectedFile.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for local OCR
                       </p>
                     </div>
                   </div>
@@ -328,10 +333,10 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
                   <FileText className="h-6 w-6" />
                 </div>
                 <p className="font-medium text-foreground text-center">
-                  Click to select a PDF menu or price sheet
+                  Click to select a PDF menu or catalog
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Supported format: PDF document (Max 10 MB)
+                  Supported format: PDF document (Max 10 MB) • Text layers &amp; scanned OCR fallback supported
                 </p>
                 <input
                   ref={fileInputRef}
@@ -349,7 +354,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
                   <div>
                     <p className="font-medium text-sm text-foreground">{selectedFile.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for AI extraction
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for text extraction
                     </p>
                   </div>
                 </div>
@@ -369,11 +374,17 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
           {/* TAB 3: PASTED TEXT */}
           <TabsContent value="text" className="space-y-3 pt-4">
             <p className="text-xs text-muted-foreground">
-              Paste your raw dish names, sections, descriptions, and prices copied from WhatsApp, Notes, or your old website:
+              Paste your raw dish names, sections, descriptions, and prices copied from WhatsApp, Notes, or your existing menu:
             </p>
             <Textarea
               rows={8}
-              placeholder={`Starters:&#10;Paneer Tikka - ₹280 - Charcoal roasted with capsicum (Veg)&#10;Chicken Malai Tikka - ₹320 - Creamy cashew marinade&#10;&#10;Mains:&#10;Butter Chicken (Half: ₹260, Full: ₹480)&#10;Dal Makhani - ₹220`}
+              placeholder={`Starters:
+Paneer Tikka - Charcoal roasted with capsicum (Veg) - ₹280
+Chicken Malai Tikka - Creamy cashew marinade - ₹320
+
+Mains:
+Butter Chicken (Half: ₹260, Full: ₹480)
+Dal Makhani - Slow cooked black lentils - ₹220`}
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
               disabled={isProcessing}
@@ -392,7 +403,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
                   Click to upload a menu spreadsheet (.csv)
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Supported format: CSV (Max 2 MB)
+                  Supported format: CSV (Max 2 MB) • Columns: Category, Name, Price, Veg, Description
                 </p>
                 <input
                   ref={fileInputRef}
@@ -428,14 +439,32 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
           </TabsContent>
         </Tabs>
 
-        {/* ERROR NOTICE */}
+        {/* ERROR / FALLBACK NOTICE */}
         {errorMessage && (
-          <div className="rounded-lg p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-start gap-2">
-            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium">Extraction Problem</p>
-              <p className="text-xs opacity-90 mt-0.5">{errorMessage}</p>
+          <div className="rounded-xl p-4 bg-destructive/10 border border-destructive/20 text-destructive text-sm space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">OCR Scan Notice</p>
+                <p className="text-xs opacity-90 mt-0.5">{errorMessage}</p>
+              </div>
             </div>
+            {activeTab !== 'text' && (
+              <div className="pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setActiveTab('text');
+                    setErrorMessage(null);
+                  }}
+                  className="text-xs h-7 border-destructive/30 hover:bg-destructive/10"
+                >
+                  ✍️ Switch to Pasted Text Instead
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -468,12 +497,12 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
             {isProcessing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Processing with Gemini...</span>
+                <span>Running Local OCR...</span>
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4" />
-                <span>Extract Menu with AI</span>
+                <Scan className="h-4 w-4" />
+                <span>Extract Menu (Local OCR)</span>
               </>
             )}
           </Button>

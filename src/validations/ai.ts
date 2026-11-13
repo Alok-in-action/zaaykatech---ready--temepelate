@@ -18,6 +18,8 @@ export const AIExtractedCategorySchema = z.object({
 });
 
 export const AIMenuExtractionOutputSchema = z.object({
+  sourceType: z.enum(['image', 'pdf', 'text', 'csv']).default('text'),
+  confidence: z.number().min(0).max(1).default(0.85),
   restaurantName: z.string().trim().nullable().optional(),
   categories: z.array(AIExtractedCategorySchema).default([]),
 });

@@ -14,6 +14,8 @@ async function runPhase4Tests() {
   // Test 1: AIMenuExtractionOutputSchema validation
   console.log('Test 1: Validating standard Gemini extraction schema...');
   const sampleGeminiOutput: AIMenuExtractionOutput = {
+    sourceType: 'image',
+    confidence: 0.95,
     restaurantName: 'The Urban Bistro',
     categories: [
       {

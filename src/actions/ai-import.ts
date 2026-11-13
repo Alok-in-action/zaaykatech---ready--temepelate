@@ -2,7 +2,7 @@
 
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
 import { createServiceClient as createServiceRoleClient } from '@/lib/supabase/service';
-import { createPresignedUploadUrl, getR2Object, verifyR2ObjectExists } from '@/lib/storage/r2';
+import { createPresignedUploadUrl, getR2Object } from '@/lib/storage/r2';
 import {
   AIMenuExtractionOutputSchema,
   CommitMenuPayloadSchema,
@@ -10,30 +10,10 @@ import {
   type CommitMenuPayload,
 } from '@/validations/ai';
 import { slugify } from '@/lib/utils';
-import { ai } from '@/ai/genkit';
+import { extractTextFromImage, extractTextFromPdf } from '@/lib/ocr/engine';
+import { parseMenuText, parseMenuCsv } from '@/lib/ocr/parser';
 import { revalidatePath } from 'next/cache';
 import crypto from 'node:crypto';
-
-const SYSTEM_PROMPT = `
-You are an expert OCR and menu ingestion assistant for ZaaykaTech, a restaurant QR menu SaaS.
-Your job is to accurately extract restaurant menu details from the provided input (image, PDF, text, or CSV).
-
-CRITICAL INSTRUCTIONS:
-1. Extract restaurantName if present, otherwise null.
-2. Group all food and beverage items into distinct categories (e.g., "Starters", "Main Course", "Breads & Rice", "Beverages", "Desserts").
-3. For each menu item:
-   - "name": Clean item title (e.g. "Paneer Butter Masala", "Cappuccino", "Margherita Pizza").
-   - "description": Description or ingredients if available, otherwise null.
-   - "pricingMode": Must be either "single" or "variants".
-     * If an item has one fixed price: set "pricingMode": "single", "pricePaise": integer in paise (e.g., ₹250 -> 25000, ₹49 -> 4900), and "variantPrices": null.
-     * If an item has multiple sizes/portions/options (e.g., Half/Full, Regular/Large, 8"/12"): set "pricingMode": "variants", "pricePaise": null, and "variantPrices": an object with option names as keys and integer prices in paise as values (e.g., {"Half": 12000, "Full": 22000}).
-     * If no price is mentioned, set "pricingMode": "single", "pricePaise": 0 (this will be flagged for review).
-   - "isVeg": Set true for vegetarian items (green dot, paneer, veg label), false for non-vegetarian (chicken, mutton, fish, egg, red dot), or null if indeterminate.
-   - "tags": Extract tags like "Spicy", "Chef Special", "Bestseller", "Jain", "Gluten-Free" if noted.
-   - "confidence": Float between 0.0 and 1.0 reflecting how confident and clear the text/price was. Assign < 0.7 if price or title was ambiguous, blurry, or cut off.
-
-OUTPUT STRICTLY VALID JSON MATCHING THE REQUESTED SCHEMA. DO NOT INVENT FOOD ITEMS THAT DO NOT EXIST ON THE MENU.
-`;
 
 /**
  * Checks and enforces owner rate limits (Max 5/hr, Max 20/day) using audit_logs in Supabase.
@@ -52,7 +32,7 @@ async function checkAndEnforceAIRateLimits(profileId: string): Promise<void> {
     .gte('created_at', oneHourAgo);
 
   if (!hourlyError && typeof hourlyCount === 'number' && hourlyCount >= 5) {
-    throw new Error('Rate limit exceeded: You can only perform 5 AI menu extractions per hour. Please wait before trying again.');
+    throw new Error('Rate limit exceeded: You can only perform 5 menu extractions per hour. Please wait before trying again.');
   }
 
   // 2. Daily check (Max 20 per day)
@@ -64,12 +44,12 @@ async function checkAndEnforceAIRateLimits(profileId: string): Promise<void> {
     .gte('created_at', oneDayAgo);
 
   if (!dailyError && typeof dailyCount === 'number' && dailyCount >= 20) {
-    throw new Error('Daily limit reached: You have reached the maximum of 20 AI menu extractions for today. Please contact support or try tomorrow.');
+    throw new Error('Daily limit reached: You have reached the maximum of 20 menu extractions for today. Please try tomorrow.');
   }
 }
 
 /**
- * Logs an AI audit event to audit_logs using the service role client.
+ * Logs an AI/OCR audit event to audit_logs using the service role client.
  */
 async function logAIAuditEvent(params: {
   actorId: string | null;
@@ -86,12 +66,12 @@ async function logAIAuditEvent(params: {
       metadata: params.metadata,
     });
   } catch (err) {
-    console.error('Failed to write AI audit log:', err);
+    console.error('Failed to write OCR audit log:', err);
   }
 }
 
 /**
- * Generates a presigned Cloudflare R2 upload URL for AI menu import files.
+ * Generates a presigned Cloudflare R2 upload URL for AI/OCR menu import files.
  * Target path: restaurants/{restaurantId}/ai-imports/{uploadId}/
  */
 export async function requestAIImportUploadUrl(
@@ -150,8 +130,8 @@ export interface ExtractMenuSourceParams {
 }
 
 /**
- * Extracts a restaurant menu using Google Gemini with structured output,
- * retry backoff, rate limiting, and fallback handling.
+ * Extracts a restaurant menu using local OCR (Tesseract.js + Sharp + pdf-parse)
+ * with deterministic rule-based parsing. Does not require any external AI API key.
  */
 export async function extractMenuFromSource(
   restaurantId: string,
@@ -182,7 +162,7 @@ export async function extractMenuFromSource(
     await logAIAuditEvent({
       actorId: user.id,
       restaurantId,
-      action: 'ai_menu_extraction_rate_limited',
+      action: 'menu_extraction_rate_limited',
       metadata: { error: rateLimitErr.message },
     });
     return { success: false, error: rateLimitErr.message };
@@ -192,7 +172,7 @@ export async function extractMenuFromSource(
   await logAIAuditEvent({
     actorId: user.id,
     restaurantId,
-    action: 'ai_menu_extraction_attempt',
+    action: 'menu_extraction_attempt',
     metadata: {
       source_type: source.type,
       mime_type: source.mimeType || null,
@@ -202,197 +182,86 @@ export async function extractMenuFromSource(
   });
 
   try {
-    let rawOutput: any = null;
-    const hasGeminiKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'placeholder_gemini_key';
+    let extractedResult: AIMenuExtractionOutput;
 
-    if (hasGeminiKey) {
-      // Build prompt parts
-      const promptParts: any[] = [{ text: SYSTEM_PROMPT }];
+    // A. PASTED TEXT
+    if (source.type === 'text') {
+      if (!source.textContent || source.textContent.trim().length === 0) {
+        throw new Error('Menu text cannot be empty.');
+      }
+      extractedResult = parseMenuText(source.textContent, 'text', 0.95);
+    }
+    // B. CSV SPREADSHEET
+    else if (source.type === 'csv') {
+      if (!source.textContent || source.textContent.trim().length === 0) {
+        throw new Error('CSV content cannot be empty.');
+      }
+      extractedResult = parseMenuCsv(source.textContent);
+    }
+    // C. IMAGE OR PDF VIA BASE64 OR R2
+    else {
+      let fileBuffer: Buffer | null = null;
+      let effectiveMime = source.mimeType || 'image/jpeg';
 
-      if (source.type === 'text' || source.type === 'csv') {
-        if (!source.textContent || source.textContent.trim().length === 0) {
-          throw new Error('Menu text cannot be empty.');
-        }
-        promptParts.push({
-          text: `Input Source (${source.type.toUpperCase()}):\n${source.textContent}`,
-        });
-      } else if (source.type === 'direct_base64' && source.base64Data && source.mimeType) {
-        promptParts.push({
-          media: {
-            url: `data:${source.mimeType};base64,${source.base64Data}`,
-            contentType: source.mimeType,
-          },
-        });
+      if (source.type === 'direct_base64' && source.base64Data) {
+        fileBuffer = Buffer.from(source.base64Data, 'base64');
       } else if (source.type === 'r2_file' && source.r2Key) {
-        const fileObj = await getR2Object(source.r2Key);
-        if (fileObj) {
-          const base64 = fileObj.buffer.toString('base64');
-          promptParts.push({
-            media: {
-              url: `data:${fileObj.contentType};base64,${base64}`,
-              contentType: fileObj.contentType,
-            },
-          });
-        } else {
-          // If R2 credentials are mock/dev, fall back to text notice
-          promptParts.push({
-            text: `Document uploaded at key: ${source.r2Key}. Extract menu structure.`,
-          });
+        const r2Obj = await getR2Object(source.r2Key);
+        if (r2Obj) {
+          fileBuffer = r2Obj.buffer;
+          effectiveMime = r2Obj.contentType;
         }
       }
 
-      // Retry loop with exponential backoff (1s, 2s)
-      let attempts = 0;
-      let lastError: any = null;
+      if (!fileBuffer) {
+        throw new Error('Could not retrieve uploaded file buffer for OCR scanning.');
+      }
 
-      while (attempts < 3) {
-        try {
-          attempts++;
-          const response = await ai.generate({
-            prompt: promptParts,
-            output: {
-              schema: AIMenuExtractionOutputSchema,
-            },
-          });
-          rawOutput = response.output;
-          break;
-        } catch (err: any) {
-          lastError = err;
-          console.warn(`Gemini extraction attempt ${attempts} failed:`, err.message);
-          if (attempts < 3) {
-            await new Promise((resolve) => setTimeout(resolve, attempts * 1000));
-          }
+      // Check PDF vs Image
+      const isPdf = effectiveMime === 'application/pdf' || (source.r2Key && source.r2Key.endsWith('.pdf'));
+
+      if (isPdf) {
+        const pdfOcr = await extractTextFromPdf(fileBuffer);
+        if (!pdfOcr.text || pdfOcr.text.trim().length < 15) {
+          throw new Error('We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.');
         }
-      }
-
-      if (!rawOutput && lastError) {
-        throw new Error(`AI extraction failed after 3 attempts: ${lastError.message}`);
+        extractedResult = parseMenuText(pdfOcr.text, 'pdf', pdfOcr.confidence);
+      } else {
+        // Image processing with Sharp and Tesseract.js
+        const imgOcr = await extractTextFromImage(fileBuffer);
+        if (!imgOcr.text || imgOcr.text.trim().length < 15) {
+          throw new Error('We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.');
+        }
+        extractedResult = parseMenuText(imgOcr.text, 'image', imgOcr.confidence);
       }
     }
 
-    // If Gemini is not configured or returned no output in development, provide a high-fidelity parsed sample
-    if (!rawOutput) {
-      rawOutput = {
-        restaurantName: restaurant.name || 'Sample Restaurant',
-        categories: [
-          {
-            name: 'Starters & Quick Bites',
-            description: 'Crispy, freshly prepared appetizers',
-            items: [
-              {
-                name: 'Paneer Tikka Angara',
-                description: 'Charcoal grilled cottage cheese marinated in spiced hung curd',
-                pricingMode: 'single',
-                pricePaise: 28000,
-                variantPrices: null,
-                isVeg: true,
-                tags: ['Spicy', 'Chef Special'],
-                confidence: 0.95,
-              },
-              {
-                name: 'Crispy Corn & Waterchestnut',
-                description: 'Tossed with scallions and crushed black pepper',
-                pricingMode: 'single',
-                pricePaise: 24000,
-                variantPrices: null,
-                isVeg: true,
-                tags: ['Bestseller'],
-                confidence: 0.88,
-              },
-              {
-                name: 'Smoky BBQ Wings',
-                description: 'Slow-cooked chicken wings glazed with hickory barbecue sauce',
-                pricingMode: 'variants',
-                pricePaise: null,
-                variantPrices: { '6 Pcs': 26000, '12 Pcs': 48000 },
-                isVeg: false,
-                tags: ['Non-Veg', 'Signature'],
-                confidence: 0.92,
-              },
-            ],
-          },
-          {
-            name: 'Wood-Fired Pizzas',
-            description: 'Handcrafted sourdough crust baked in 450°C stone oven',
-            items: [
-              {
-                name: 'Margherita Classica',
-                description: 'San Marzano tomato sauce, fresh buffalo mozzarella, sweet basil',
-                pricingMode: 'variants',
-                pricePaise: null,
-                variantPrices: { 'Regular (8")': 29900, 'Large (12")': 49900 },
-                isVeg: true,
-                tags: ['Bestseller'],
-                confidence: 0.86,
-              },
-              {
-                name: 'Spicy Truffle Mushroom',
-                description: 'Shiitake, button mushrooms, garlic confit, and white truffle drizzle',
-                pricingMode: 'single',
-                pricePaise: 38000,
-                variantPrices: null,
-                isVeg: true,
-                tags: ['Chef Special'],
-                confidence: 0.65, // Flagged low confidence (< 0.70) for review test
-              },
-              {
-                name: 'Specialty Chef Pie',
-                description: 'Seasonal toppings with burrata cheese',
-                pricingMode: 'single',
-                pricePaise: 0, // Flagged suspicious price (₹0) for review test
-                variantPrices: null,
-                isVeg: true,
-                tags: [],
-                confidence: 0.55,
-              },
-            ],
-          },
-          {
-            name: 'Beverages & Coolers',
-            description: 'Artisanal coffees and refreshing coolers',
-            items: [
-              {
-                name: 'Cold Brew Citrus Tonic',
-                description: 'Single-origin Arabica steeped for 18 hours with fresh orange zest',
-                pricingMode: 'single',
-                pricePaise: 18000,
-                variantPrices: null,
-                isVeg: true,
-                tags: ['Beverage'],
-                confidence: 0.96,
-              },
-              {
-                name: 'Masala Chai Latte',
-                description: 'Assam CTC simmered with cardamom, ginger, and lemongrass',
-                pricingMode: 'single',
-                pricePaise: 9000,
-                variantPrices: null,
-                isVeg: true,
-                tags: ['Hot'],
-                confidence: 0.94,
-              },
-            ],
-          },
-        ],
-      };
+    // Attach restaurant name
+    extractedResult.restaurantName = restaurant.name;
+
+    // 3. Fallback check: Did we extract any items?
+    const totalItems = extractedResult.categories.reduce((acc, cat) => acc + cat.items.length, 0);
+    if (totalItems === 0) {
+      throw new Error('We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.');
     }
 
-    // 3. Strict Zod validation on output
-    const validated = AIMenuExtractionOutputSchema.safeParse(rawOutput);
+    // 4. Validate output strictly with Zod
+    const validated = AIMenuExtractionOutputSchema.safeParse(extractedResult);
     if (!validated.success) {
       const issues = validated.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ');
-      throw new Error(`AI extraction returned invalid schema: ${issues}`);
+      throw new Error(`Extraction parser returned invalid schema: ${issues}`);
     }
 
-    // 4. Log extraction success
-    const totalItems = validated.data.categories.reduce((acc, cat) => acc + cat.items.length, 0);
+    // 5. Log success
     await logAIAuditEvent({
       actorId: user.id,
       restaurantId,
-      action: 'ai_menu_extraction_success',
+      action: 'menu_extraction_success',
       metadata: {
+        source_type: source.type,
         category_count: validated.data.categories.length,
         item_count: totalItems,
+        confidence: validated.data.confidence,
       },
     });
 
@@ -401,16 +270,16 @@ export async function extractMenuFromSource(
       data: validated.data,
     };
   } catch (err: any) {
-    console.error('Menu extraction failed:', err);
+    console.error('Menu OCR extraction failed:', err);
     await logAIAuditEvent({
       actorId: user.id,
       restaurantId,
-      action: 'ai_menu_extraction_failure',
+      action: 'menu_extraction_failure',
       metadata: { error: err.message },
     });
     return {
       success: false,
-      error: err.message || 'An error occurred during menu extraction. Please verify your file or try again.',
+      error: err.message || 'We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.',
     };
   }
 }
@@ -458,7 +327,7 @@ export async function commitExtractedMenu(
       .order('position', { ascending: false });
 
     let nextCategoryPos = (existingCategories?.[0]?.position ?? -1) + 1;
-    const categoryMap = new Map<string, string>(); // lowercase name -> existing category id
+    const categoryMap = new Map<string, string>();
 
     if (existingCategories) {
       for (const cat of existingCategories) {
@@ -553,14 +422,13 @@ export async function commitExtractedMenu(
     await logAIAuditEvent({
       actorId: user.id,
       restaurantId,
-      action: 'ai_menu_committed',
+      action: 'menu_committed',
       metadata: {
         imported_categories: importedCategoriesCount,
         imported_items: importedItemsCount,
       },
     });
 
-    // Revalidate menu management page
     revalidatePath('/owner/menu');
 
     return {
@@ -569,7 +437,7 @@ export async function commitExtractedMenu(
       importedItems: importedItemsCount,
     };
   } catch (err: any) {
-    console.error('Failed to commit AI menu:', err);
+    console.error('Failed to commit menu:', err);
     return { success: false, error: err.message || 'Failed to save menu items.' };
   }
 }
