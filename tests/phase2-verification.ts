@@ -1,4 +1,6 @@
 import assert from 'node:assert';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 import QRCode from 'qrcode';
 import { slugify } from '../src/lib/utils';
 import {
@@ -99,8 +101,8 @@ async function runPhase2Tests() {
     fileSize: 100 * 1024,
   });
   assert.ok(
-    presigned.key.startsWith(`restaurants/${testRestaurantId}/logo-`),
-    'Object key must follow restaurants/{restaurantId}/ format'
+    presigned.key.startsWith(`restaurants/${testRestaurantId}/logo/`),
+    'Object key must follow restaurants/{restaurantId}/logo/ format'
   );
   assert.strictEqual(presigned.expiresInSeconds, 300, 'Presigned URL must expire in 300s (5m)');
   console.log('  ✓ Presigned key and 300s expiration verified');

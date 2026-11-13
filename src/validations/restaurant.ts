@@ -72,15 +72,10 @@ export const CreateRestaurantSchema = z.object({
 
 export const MediaUploadRequestSchema = z.object({
   restaurantId: z.string().uuid(),
-  fileType: z.enum([
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'video/mp4',
-    'video/webm',
-  ]),
+  fileType: z.string().min(1),
   fileSize: z.number().positive(),
-  purpose: z.enum(['logo', 'hero', 'poster', 'dish']),
+  purpose: z.enum(['logo', 'hero', 'poster', 'hero-poster', 'dish', 'menu-item', 'qr', 'ai-import']),
+  itemId: z.string().optional(),
 });
 
 export type CreateRestaurantInput = z.infer<typeof CreateRestaurantSchema>;
