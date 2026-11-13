@@ -53,7 +53,7 @@ export async function createSubscriptionOrder(restaurantId: string) {
       },
     });
 
-    const keyId = process.env.RAZORPAY_KEY_ID || 'placeholder_razorpay_key_id';
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '';
 
     return {
       success: true,

@@ -76,14 +76,14 @@ export async function POST(req: NextRequest) {
 
     const order = await response.json();
 
-    // 5. Return: { order_id, amount, currency } along with convenience fields
+    // 5. Return: { order_id, amount, currency } along with public key
     return NextResponse.json({
       order_id: order.id,
       id: order.id,
       amount: order.amount,
       currency: order.currency,
       receipt: order.receipt,
-      key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || keyId,
+      key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
     });
   } catch (err: any) {
     console.error('Error in /api/create-order:', err);

@@ -75,7 +75,7 @@ export function validateStagingEnv(): StagingValidationReport {
     missing.push('RAZORPAY_KEY_SECRET (Required for payment signature verification)');
   }
   if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
-    warnings.push('NEXT_PUBLIC_RAZORPAY_KEY_ID not set; client checkout will fallback to RAZORPAY_KEY_ID');
+    warnings.push('NEXT_PUBLIC_RAZORPAY_KEY_ID not set; client checkout requires this key');
   }
   if (!process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_WEBHOOK_SECRET === 'placeholder_razorpay_webhook_secret') {
     warnings.push('RAZORPAY_WEBHOOK_SECRET is using placeholder; live webhooks will fail signature validation');
