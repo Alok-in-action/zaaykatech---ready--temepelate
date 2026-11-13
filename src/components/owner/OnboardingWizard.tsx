@@ -193,25 +193,27 @@ export function OnboardingWizard({
       return;
     }
 
-    if (restaurant && autoSaveData) {
-      try {
-        setSaving(true);
-        const saveFn = onSaveStep || saveOnboardingStepAction;
-        const res = await saveFn(restaurant.id, stepCode, autoSaveData);
-        if (!res.success) {
-          setError(res.error || 'Failed to save progress.');
-          setSaving(false);
-          return;
-        }
-        flashSavedTick();
-      } catch (err: unknown) {
-        console.error('Auto-save error:', err);
-      } finally {
-        setSaving(false);
-      }
-    }
-
+    // Advance UI immediately for instant, snappy feel (0ms screen lag)
     setSubStep(nextStep);
+
+    if (restaurant && autoSaveData) {
+      setSaving(true);
+      const saveFn = onSaveStep || saveOnboardingStepAction;
+      saveFn(restaurant.id, stepCode, autoSaveData)
+        .then((res) => {
+          if (!res.success) {
+            setError(res.error || 'Failed to save progress.');
+          } else {
+            flashSavedTick();
+          }
+        })
+        .catch((err: unknown) => {
+          console.error('Auto-save error:', err);
+        })
+        .finally(() => {
+          setSaving(false);
+        });
+    }
   };
 
   // Back button handler
@@ -603,6 +605,14 @@ export function OnboardingWizard({
         {subStep === '1a' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-amber-100/90 border border-amber-300/70 text-[#8B4A27] flex items-center justify-center shadow-xs">
+                  <Store className="w-5 h-5 animate-pulse" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/80">
+                  Restaurant Basics
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step1.name.question}
               </h1>
@@ -635,6 +645,14 @@ export function OnboardingWizard({
         {subStep === '1b' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-100/90 border border-emerald-300/70 text-emerald-800 flex items-center justify-center shadow-xs">
+                  <UtensilsCrossed className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/80">
+                  Food &amp; Dining
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step1.foodType.question}
               </h1>
@@ -750,6 +768,16 @@ export function OnboardingWizard({
         {subStep === '1c' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-blue-100/90 border border-blue-300/70 text-blue-800 flex items-center justify-center shadow-xs relative">
+                  <Phone className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping" />
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/80">
+                  Customer Phone
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step1.phone.question}
               </h1>
@@ -788,6 +816,14 @@ export function OnboardingWizard({
         {subStep === '1d' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-rose-100/90 border border-rose-300/70 text-rose-800 flex items-center justify-center shadow-xs">
+                  <MapPin className="w-5 h-5 animate-pulse" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-rose-900 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200/80">
+                  City &amp; Location
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step1.city.question}
               </h1>
@@ -821,6 +857,14 @@ export function OnboardingWizard({
         {subStep === '2a' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-purple-100/90 border border-purple-300/70 text-purple-800 flex items-center justify-center shadow-xs">
+                  <Sparkles className="w-5 h-5 animate-pulse" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-purple-900 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-200/80">
+                  Logo &amp; Brand
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step2.logo.question}
               </h1>
@@ -849,6 +893,14 @@ export function OnboardingWizard({
         {subStep === '2b' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-amber-100/90 border border-amber-300/70 text-amber-800 flex items-center justify-center shadow-xs">
+                  <Palette className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/80">
+                  Visual Style
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step2.style.question}
               </h1>
@@ -932,6 +984,14 @@ export function OnboardingWizard({
         {subStep === '2c' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-sky-100/90 border border-sky-300/70 text-sky-800 flex items-center justify-center shadow-xs">
+                  <Camera className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-sky-900 bg-sky-50 px-2.5 py-1 rounded-full border border-sky-200/80">
+                  Cover Photo
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step2.cover.question}
               </h1>
@@ -961,6 +1021,14 @@ export function OnboardingWizard({
         {subStep === '3a' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-amber-100/90 border border-amber-300/70 text-[#8B4A27] flex items-center justify-center shadow-xs">
+                  <UtensilsCrossed className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#8B4A27] bg-[#8B4A27]/5 px-2.5 py-1 rounded-full border border-[#8B4A27]/20">
+                  Menu Category
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step3.category.question}
               </h1>
@@ -1020,6 +1088,14 @@ export function OnboardingWizard({
         {subStep === '3b' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-orange-100/90 border border-orange-300/70 text-orange-800 flex items-center justify-center shadow-xs">
+                  <Cake className="w-5 h-5 animate-pulse" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-orange-900 bg-orange-50 px-2.5 py-1 rounded-full border border-orange-200/80">
+                  First Dish
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step3.dish.question}
               </h1>
@@ -1094,6 +1170,14 @@ export function OnboardingWizard({
         {subStep === '3c' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-100/90 border border-emerald-300/70 text-emerald-800 flex items-center justify-center shadow-xs">
+                  <Check className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/80">
+                  Menu In Progress
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step3.more.question}
               </h1>
@@ -1123,7 +1207,7 @@ export function OnboardingWizard({
               </button>
 
               <Link
-                href="/owner/menu/import"
+                href={`/owner/menu/ai-import?from=onboarding${restaurant?.id ? `&restaurant_id=${restaurant.id}` : ''}`}
                 className="w-full min-h-[56px] px-4 py-3 bg-white hover:bg-stone-50 border-2 border-stone-300 hover:border-[#8B4A27] text-stone-900 font-semibold text-base rounded-2xl transition-all active:scale-[0.97] touch-manipulation flex items-center justify-between cursor-pointer"
               >
                 <span className="flex items-center gap-2">
@@ -1149,6 +1233,14 @@ export function OnboardingWizard({
         {subStep === '4a' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-indigo-100/90 border border-indigo-300/70 text-indigo-800 flex items-center justify-center shadow-xs">
+                  <Eye className="w-5 h-5 animate-pulse" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200/80">
+                  Live Preview
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step4.review.question}
               </h1>
@@ -1253,6 +1345,14 @@ export function OnboardingWizard({
         {subStep === '5a' && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-300 text-emerald-800 flex items-center justify-center shadow-xs">
+                  <Sparkles className="w-5 h-5 animate-bounce" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                  Ready to Publish
+                </span>
+              </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step5.ready.question}
               </h1>

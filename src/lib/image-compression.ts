@@ -1,13 +1,31 @@
 /**
  * Client-Side Image Compression Utility
- * Resizes images so the longest edge is <= 1600px and compresses to JPEG/WebP.
- * Significantly saves mobile bandwidth on 3G/4G networks before uploading.
+ * Resizes and compresses images in the browser before network transmission.
+ * Reduces 5–10 MB smartphone photos to ~30–120 KB WebP/JPEG for lightning-fast uploads on mobile data.
  */
+
+export function getRecommendedCompression(purpose: 'logo' | 'hero' | 'poster' | 'dish' | string): {
+  maxDimension: number;
+  quality: number;
+} {
+  switch (purpose) {
+    case 'logo':
+      return { maxDimension: 512, quality: 0.82 };
+    case 'dish':
+      return { maxDimension: 800, quality: 0.82 };
+    case 'hero':
+    case 'poster':
+    case 'hero-poster':
+      return { maxDimension: 1280, quality: 0.8 };
+    default:
+      return { maxDimension: 1200, quality: 0.82 };
+  }
+}
 
 export async function compressImage(
   file: File,
-  maxDimension: number = 1600,
-  quality: number = 0.85
+  maxDimension: number = 1200,
+  quality: number = 0.82
 ): Promise<File> {
   // If SVG or non-image, skip compression
   if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
@@ -45,34 +63,44 @@ export async function compressImage(
           return;
         }
 
-        // Draw and compress
+        // Draw downscaled image onto canvas
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Keep PNG if user uploaded transparent PNG, otherwise compress to JPEG
-        const outputMime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        // Try WebP first for superior compression and alpha transparency support
+        const tryFormat = (mimeType: string, fallbackMime: string) => {
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                // Fallback to JPEG if WebP blob creation failed
+                if (fallbackMime && fallbackMime !== mimeType) {
+                  tryFormat(fallbackMime, '');
+                  return;
+                }
+                resolve(file);
+                return;
+              }
 
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              resolve(file);
-              return;
-            }
+              // Only use compressed if it actually reduced file size
+              if (blob.size >= file.size && file.type === mimeType) {
+                resolve(file);
+                return;
+              }
 
-            // If compressed is larger than original, return original
-            if (blob.size >= file.size) {
-              resolve(file);
-              return;
-            }
+              const ext = mimeType === 'image/webp' ? '.webp' : mimeType === 'image/png' ? '.png' : '.jpg';
+              const cleanBase = file.name.replace(/\.[^/.]+$/, '');
+              const compressedFile = new File([blob], `${cleanBase}${ext}`, {
+                type: mimeType,
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            },
+            mimeType,
+            quality
+          );
+        };
 
-            const compressedFile = new File([blob], file.name, {
-              type: outputMime,
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
-          },
-          outputMime,
-          quality
-        );
+        // Modern browsers: export WebP (or fallback to JPEG)
+        tryFormat('image/webp', 'image/jpeg');
       };
 
       img.onerror = () => resolve(file);

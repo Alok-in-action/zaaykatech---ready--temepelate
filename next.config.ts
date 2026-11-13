@@ -3,6 +3,15 @@ import withBundleAnalyzer from '@next/bundle-analyzer';
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['sharp', 'pdf-parse', 'tesseract.js'],
+  async redirects() {
+    return [
+      {
+        source: '/owner/menu/import',
+        destination: '/owner/menu/ai-import',
+        permanent: true,
+      },
+    ];
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

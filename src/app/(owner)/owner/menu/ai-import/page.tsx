@@ -1,35 +1,44 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Sparkles, CheckCircle2, ChevronRight, UtensilsCrossed, Scan } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { ArrowLeft, Sparkles, CheckCircle2, ChevronRight, UtensilsCrossed, Scan, ArrowRight } from 'lucide-react';
 import { MenuSourceUploader } from '@/components/owner/ai/MenuSourceUploader';
 import { ExtractionReviewTable } from '@/components/owner/ai/ExtractionReviewTable';
 import { Button } from '@/components/ui/button';
 import type { AIMenuExtractionOutput } from '@/validations/ai';
 import { getOwnerRestaurant } from '@/actions/restaurant';
 
-export default function AIMenuImportPage() {
-  const [restaurantId, setRestaurantId] = useState<string>('');
+function AIMenuImportContent() {
+  const searchParams = useSearchParams();
+  const isFromOnboarding = searchParams?.get('from') === 'onboarding';
+  const paramRestaurantId = searchParams?.get('restaurant_id');
+
+  const [restaurantId, setRestaurantId] = useState<string>(paramRestaurantId || '');
   const [step, setStep] = useState<'upload' | 'review' | 'success'>('upload');
   const [extractedData, setExtractedData] = useState<AIMenuExtractionOutput | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadRestaurant() {
+      if (paramRestaurantId) {
+        setRestaurantId(paramRestaurantId);
+        return;
+      }
       try {
         const res = await getOwnerRestaurant();
         if (res.success && res.restaurant) {
           setRestaurantId(res.restaurant.id);
         } else {
-          setErrorMsg(res.error || 'No restaurant found.');
+          setErrorMsg(res.error || 'No restaurant found. Please start onboarding first.');
         }
       } catch (err: unknown) {
         setErrorMsg((err as Error).message);
       }
     }
     loadRestaurant();
-  }, []);
+  }, [paramRestaurantId]);
 
   const handleExtractionSuccess = (data: AIMenuExtractionOutput) => {
     setExtractedData(data);
@@ -45,13 +54,16 @@ export default function AIMenuImportPage() {
     setStep('upload');
   };
 
+  const returnUrl = isFromOnboarding ? '/owner/onboarding' : '/owner/menu';
+  const returnLabel = isFromOnboarding ? 'Back to Onboarding' : 'Menu Management';
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* NAVIGATION / BREADCRUMB */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Link href="/owner/menu" className="hover:text-foreground flex items-center gap-1">
+        <Link href={returnUrl} className="hover:text-foreground flex items-center gap-1">
           <ArrowLeft className="h-3.5 w-3.5" />
-          <span>Menu Management</span>
+          <span>{returnLabel}</span>
         </Link>
         <ChevronRight className="h-3.5 w-3.5 opacity-60" />
         <span className="text-foreground font-medium flex items-center gap-1.5">
@@ -77,10 +89,10 @@ export default function AIMenuImportPage() {
         </div>
 
         <Link
-          href="/owner/menu"
+          href={returnUrl}
           className="px-4 py-2 border rounded-xl text-xs font-semibold hover:bg-muted transition-colors shrink-0"
         >
-          Back to Dishes
+          {returnLabel}
         </Link>
       </div>
 
@@ -119,12 +131,21 @@ export default function AIMenuImportPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
-            <Link href="/owner/menu">
-              <Button className="flex items-center gap-2">
-                <UtensilsCrossed className="h-4 w-4" />
-                <span>Go to Menu &amp; Dishes</span>
-              </Button>
-            </Link>
+            {isFromOnboarding ? (
+              <Link href="/owner/onboarding">
+                <Button className="flex items-center gap-2 bg-[#8B4A27] hover:bg-[#743c1e] text-white">
+                  <span>Continue Onboarding</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/owner/menu">
+                <Button className="flex items-center gap-2">
+                  <UtensilsCrossed className="h-4 w-4" />
+                  <span>Go to Menu &amp; Dishes</span>
+                </Button>
+              </Link>
+            )}
             <Button
               variant="outline"
               onClick={() => {
@@ -138,5 +159,13 @@ export default function AIMenuImportPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AIMenuImportPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-stone-500">Loading OCR importer...</div>}>
+      <AIMenuImportContent />
+    </Suspense>
   );
 }

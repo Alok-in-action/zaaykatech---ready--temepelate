@@ -13,7 +13,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { requestMediaUploadUrl, verifyAndCommitMedia } from '@/actions/media';
-import { compressImage } from '@/lib/image-compression';
+import { compressImage, getRecommendedCompression } from '@/lib/image-compression';
 
 interface MediaUploaderProps {
   restaurantId: string;
@@ -54,6 +54,14 @@ export function MediaUploader({
     setLastFailedFile(null);
     setIsSuccess(false);
 
+    // Immediate local preview so the user gets instant feedback
+    if (!isVideo && rawFile.type.startsWith('image/')) {
+      try {
+        const localPreview = URL.createObjectURL(rawFile);
+        setPreviewUrl(localPreview);
+      } catch {}
+    }
+
     // 1. Client-side Size Check on raw input
     const maxSizeBytes = effectiveMaxSizeMb * 1024 * 1024;
     if (rawFile.size > maxSizeBytes && isVideo) {
@@ -61,11 +69,12 @@ export function MediaUploader({
       return;
     }
 
-    // 2. Client-side Image Compression (target 1600px long edge, WebP/JPEG)
+    // 2. Client-side Smart Compression based on purpose (WebP/JPEG)
     let file = rawFile;
     if (!isVideo && rawFile.type.startsWith('image/')) {
       try {
-        file = await compressImage(rawFile, 1600, 0.85);
+        const comp = getRecommendedCompression(purpose);
+        file = await compressImage(rawFile, comp.maxDimension, comp.quality);
       } catch (compErr) {
         console.warn('Image compression fallback to original:', compErr);
         file = rawFile;
