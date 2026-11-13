@@ -17,6 +17,12 @@ export const envSchema = z.object({
   NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().min(1, 'NEXT_PUBLIC_RAZORPAY_KEY_ID is required for client checkout'),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
+  // Auth & OAuth (Optional / Staging)
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  NEXTAUTH_URL: z.string().url().optional(),
+  NEXTAUTH_SECRET: z.string().optional(),
+
   // Cloudflare R2 (Optional - superseded by Supabase Storage)
   CLOUDFLARE_R2_ACCOUNT_ID: z.string().optional(),
   CLOUDFLARE_R2_ACCESS_KEY_ID: z.string().optional(),

@@ -10,15 +10,23 @@ export async function middleware(request: NextRequest) {
 
   // 2. Subdomain routing for multi-tenant custom domains / subdomains
   // e.g. "mycafe.zaaykatech.com" -> rewrite to "/r/mycafe"
-  // Ignore localhost, www, app, and preview hosts
-  const isLocal = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+  // Never rewrite platform domains: localhost, *.vercel.app, *.now.sh, *.netlify.app
+  const isPlatformHost =
+    hostname.includes('localhost') ||
+    hostname.includes('127.0.0.1') ||
+    hostname.endsWith('.vercel.app') ||
+    hostname.includes('vercel.app') ||
+    hostname.endsWith('.now.sh') ||
+    hostname.endsWith('.netlify.app') ||
+    hostname.includes('netlify.app');
+
   let subdomain: string | null = null;
 
-  if (!isLocal) {
+  if (!isPlatformHost) {
     const parts = hostname.split('.');
     if (parts.length >= 3) {
       const candidate = parts[0].toLowerCase();
-      if (!['www', 'app', 'admin', 'api'].includes(candidate)) {
+      if (!['www', 'app', 'admin', 'api', 'staging'].includes(candidate)) {
         subdomain = candidate;
       }
     }
