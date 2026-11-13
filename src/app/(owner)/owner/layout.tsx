@@ -47,6 +47,7 @@ export default async function OwnerLayout({
           trialEndsAt={lifecycle.trialEndsAt || new Date().toISOString()}
           siteStatus={lifecycle.siteStatus}
           restaurantId={activeRestaurant.id}
+          subscriptionEndDate={lifecycle.subscriptionEndDate}
         />
       )}
 

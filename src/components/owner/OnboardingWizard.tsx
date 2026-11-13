@@ -13,6 +13,7 @@ import { createMenuItem } from '@/actions/item';
 import { MediaUploader } from './MediaUploader';
 import { ThemeCustomizer } from './ThemeCustomizer';
 import PublicMenu from '@/components/public-menu/PublicMenu';
+import { formatPrice } from '@/components/public-menu/MenuItemCard';
 import {
   Restaurant,
   RestaurantTheme,
@@ -39,6 +40,7 @@ import {
   Check,
   AlertCircle,
   FileText,
+  RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -47,6 +49,7 @@ interface OnboardingWizardProps {
   initialStep: number;
   initialCategories: MenuCategory[];
   initialItems: MenuItem[];
+  isFreshPublish?: boolean;
 }
 
 export function OnboardingWizard({
@@ -54,6 +57,7 @@ export function OnboardingWizard({
   initialStep = 1,
   initialCategories = [],
   initialItems = [],
+  isFreshPublish = false,
 }: OnboardingWizardProps) {
   const router = useRouter();
 
@@ -120,7 +124,7 @@ export function OnboardingWizard({
     publishedAt: string;
     trialEndsAt: string;
   } | null>(
-    initialRestaurant?.status === 'published' && initialRestaurant?.published_at && initialRestaurant?.trial_ends_at
+    (initialRestaurant?.status === 'published' && initialRestaurant?.published_at && initialRestaurant?.trial_ends_at && (isFreshPublish || initialStep === 5))
       ? {
           publishedAt: initialRestaurant.published_at,
           trialEndsAt: initialRestaurant.trial_ends_at,
@@ -128,15 +132,26 @@ export function OnboardingWizard({
       : null
   );
 
+  const [menuRefreshError, setMenuRefreshError] = useState<string | null>(null);
+
   // Refresh categories & items from server
-  const refreshMenuData = async (restId: string) => {
-    const res = await getOwnerMenuData(restId);
-    if (res.success) {
-      setCategories(res.categories);
-      setItems(res.items);
-      if (res.categories.length > 0 && !newItemCategory) {
+  const refreshMenuData = async (restId: string): Promise<boolean> => {
+    setMenuRefreshError(null);
+    try {
+      const res = await getOwnerMenuData(restId);
+      if (!res.success) {
+        setMenuRefreshError(res.error || 'Failed to retrieve menu data from server.');
+        return false;
+      }
+      setCategories(res.categories || []);
+      setItems(res.items || []);
+      if (res.categories && res.categories.length > 0 && !newItemCategory) {
         setNewItemCategory(res.categories[0].id);
       }
+      return true;
+    } catch (err: unknown) {
+      setMenuRefreshError((err as Error).message || 'Failed to refresh menu data.');
+      return false;
     }
   };
 
@@ -263,6 +278,7 @@ export function OnboardingWizard({
     if (!restaurant || !newCatName.trim()) return;
 
     setError(null);
+    setMenuRefreshError(null);
     setAddingCategory(true);
     try {
       const res = await createCategory(restaurant.id, {
@@ -273,9 +289,15 @@ export function OnboardingWizard({
 
       if (!res.success) throw new Error(res.error || 'Failed to add category');
 
+      // Keep success result; clear write form
       setNewCatName('');
       setNewCatDesc('');
-      await refreshMenuData(restaurant.id);
+
+      // Refresh menu data; if refresh read fails, show retry without repeating write
+      const refreshed = await refreshMenuData(restaurant.id);
+      if (!refreshed) {
+        setMenuRefreshError('Category added successfully! Failed to refresh list. Please click retry below.');
+      }
     } catch (err: unknown) {
       setError((err as Error).message);
     } finally {
@@ -306,6 +328,7 @@ export function OnboardingWizard({
     }
 
     setError(null);
+    setMenuRefreshError(null);
     setAddingItem(true);
     try {
       const res = await createMenuItem(restaurant.id, {
@@ -325,10 +348,16 @@ export function OnboardingWizard({
 
       if (!res.success) throw new Error(res.error || 'Failed to add dish');
 
+      // Keep success result; clear write form
       setNewItemName('');
       setNewItemPrice('');
       setNewItemDesc('');
-      await refreshMenuData(restaurant.id);
+
+      // Refresh menu data; if refresh read fails, show retry without repeating write
+      const refreshed = await refreshMenuData(restaurant.id);
+      if (!refreshed) {
+        setMenuRefreshError('Dish added successfully! Failed to refresh list. Please click retry below.');
+      }
     } catch (err: unknown) {
       setError((err as Error).message);
     } finally {
@@ -340,6 +369,12 @@ export function OnboardingWizard({
   const handleStep3Submit = async () => {
     setError(null);
     if (!restaurant) return;
+
+    // Never treat a failed read as an empty menu
+    if (menuRefreshError && (categories.length === 0 || items.length === 0)) {
+      setError(`Cannot advance: menu read failed (${menuRefreshError}). Please click retry to verify your dishes.`);
+      return;
+    }
 
     if (categories.length === 0) {
       setError('Please add at least one category (e.g. Starters, Main Course) to continue.');
@@ -397,7 +432,8 @@ export function OnboardingWizard({
         publishedAt: res.publishedAt || new Date().toISOString(),
         trialEndsAt: res.trialEndsAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       });
-      router.refresh();
+      // Replace URL with fresh-publish flag so confirmation and copy controls remain reachable
+      router.replace('/owner/onboarding?fresh=true', { scroll: false });
     } catch (err: unknown) {
       setError((err as Error).message);
     } finally {
@@ -413,30 +449,44 @@ export function OnboardingWizard({
     { num: 5, label: 'Publish', icon: QrCode },
   ];
 
-  // Constructed restaurant for previewing
-  const previewRestaurant: Restaurant = restaurant || {
-    id: 'temp',
-    owner_profile_id: 'temp',
-    agent_id: null,
-    slug: 'my-restaurant',
-    name: name || 'My Restaurant',
-    food_type: foodType,
-    status: 'draft',
-    onboarding_source: 'self_serve',
+  // Constructed restaurant for previewing built directly from live form state
+  const previewRestaurant: Restaurant = {
+    id: restaurant?.id || 'temp',
+    owner_profile_id: restaurant?.owner_profile_id || 'temp',
+    agent_id: restaurant?.agent_id || null,
+    slug: restaurant?.slug || 'my-restaurant',
+    name: name.trim() || restaurant?.name || 'My Restaurant',
+    food_type: foodType.trim() || restaurant?.food_type || null,
+    status: restaurant?.status || 'draft',
+    onboarding_source: restaurant?.onboarding_source || 'self_serve',
     onboarding_current_step: step,
-    onboarding_completed_at: null,
-    onboarding_status: 'in_progress',
+    onboarding_completed_at: restaurant?.onboarding_completed_at || null,
+    onboarding_status: restaurant?.onboarding_status || 'in_progress',
     archived_at: null,
-    trial_ends_at: null,
-    published_at: null,
-    site_status: 'draft',
-    subscription_end_date: null,
-    branding,
-    contact: { phone, whatsapp, email: null },
-    address: { street, city, state, pincode, google_maps_url: googleMapsUrl },
-    social_links: { instagram: null, facebook: null, google_review: null },
-    theme,
-    created_at: new Date().toISOString(),
+    trial_ends_at: restaurant?.trial_ends_at || null,
+    published_at: restaurant?.published_at || null,
+    site_status: restaurant?.site_status || 'draft',
+    subscription_end_date: restaurant?.subscription_end_date || null,
+    branding: {
+      ...branding,
+      tagline: tagline.trim() || branding.tagline,
+    },
+    contact: {
+      ...(restaurant?.contact || {}),
+      phone: phone.trim() || null,
+      whatsapp: whatsapp.trim() || null,
+      email: restaurant?.contact?.email || null,
+    },
+    address: {
+      street: street.trim() || null,
+      city: city.trim() || null,
+      state: state.trim() || null,
+      pincode: pincode.trim() || null,
+      google_maps_url: googleMapsUrl.trim() || null,
+    },
+    social_links: restaurant?.social_links || { instagram: null, facebook: null, google_review: null },
+    theme: theme,
+    created_at: restaurant?.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 
@@ -909,6 +959,23 @@ export function OnboardingWizard({
                   </span>
                 </h3>
 
+                {menuRefreshError && (
+                  <div className="mb-3 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>{menuRefreshError}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => restaurant && refreshMenuData(restaurant.id)}
+                      className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Retry</span>
+                    </button>
+                  </div>
+                )}
+
                 {categories.length === 0 ? (
                   <div className="text-center py-8 text-stone-400 text-xs">
                     No categories created yet. Add your first category on the left.
@@ -929,7 +996,7 @@ export function OnboardingWizard({
                                 <li key={itm.id} className="text-[11px] text-stone-600 flex items-center justify-between">
                                   <span>• {itm.name}</span>
                                   <span className="font-medium text-stone-900">
-                                    ₹{itm.price_paise ? itm.price_paise / 100 : 0}
+                                    {formatPrice(itm.price_paise, itm.variant_prices)}
                                   </span>
                                 </li>
                               ))}

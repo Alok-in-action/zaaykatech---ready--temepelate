@@ -6,12 +6,13 @@ import { OnboardingWizard } from '@/components/owner/OnboardingWizard';
 import { MenuCategory, MenuItem } from '@/types/database';
 
 interface OnboardingPageProps {
-  searchParams?: Promise<{ edit?: string }>;
+  searchParams?: Promise<{ edit?: string; fresh?: string }>;
 }
 
 export default async function OnboardingPage({ searchParams }: OnboardingPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const isExplicitEdit = resolvedSearchParams.edit === 'true';
+  const isFreshPublish = resolvedSearchParams.fresh === 'true';
 
   const lifecycle = await getOwnerLifecycle();
 
@@ -20,9 +21,10 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   }
 
   // If the owner has already completed and published (or offline), send them directly to dashboard
-  // unless they explicitly requested edit mode (?edit=true)
+  // unless they explicitly requested edit mode (?edit=true) or fresh publish confirmation (?fresh=true)
   if (
     !isExplicitEdit &&
+    !isFreshPublish &&
     lifecycle.restaurant &&
     (lifecycle.restaurant.onboarding_status === 'completed' || lifecycle.state === 'offline')
   ) {
@@ -44,9 +46,10 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
     <div className="py-4 max-w-4xl mx-auto">
       <OnboardingWizard
         initialRestaurant={lifecycle.restaurant}
-        initialStep={isExplicitEdit ? 1 : lifecycle.step || 1}
+        initialStep={isFreshPublish ? 5 : isExplicitEdit ? 1 : lifecycle.step || 1}
         initialCategories={categories}
         initialItems={items}
+        isFreshPublish={isFreshPublish}
       />
     </div>
   );
