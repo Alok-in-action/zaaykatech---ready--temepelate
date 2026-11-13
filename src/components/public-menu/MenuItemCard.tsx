@@ -83,6 +83,8 @@ export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
                 src={item.image_url}
                 alt={item.name}
                 fill
+                sizes="64px"
+                loading="lazy"
                 className="object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
               />
             </div>
@@ -147,6 +149,8 @@ export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
               src={item.image_url}
               alt={item.name}
               fill
+              sizes="(max-width: 640px) 56px, 64px"
+              loading="lazy"
               className="object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
             />
           </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -6,6 +7,15 @@ import { Restaurant, SiteStatus } from '@/types/database';
 import { calculateSiteStatus } from '@/lib/tenant/resolver';
 import { TrialCountdownBanner } from '@/components/owner/TrialCountdownBanner';
 import { OwnerHeader } from '@/components/owner/OwnerHeader';
+
+export const metadata: Metadata = {
+  title: 'Owner Portal | ZaaykaTech',
+  description: 'Manage menu items, pricing variants, branding, and QR kits for your restaurants.',
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function OwnerLayout({
   children,

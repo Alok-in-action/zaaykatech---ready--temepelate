@@ -10,7 +10,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Montserrat', 'sans-serif'],
+        sans: ['var(--font-montserrat)', 'Montserrat', 'sans-serif'],
         script: ['Great Vibes', 'cursive'],
         code: ['monospace'],
       },

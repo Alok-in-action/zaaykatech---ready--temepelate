@@ -1,8 +1,12 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import { resolveTenantBySlug } from '@/lib/tenant/resolver';
 import PublicMenu from '@/components/public-menu/PublicMenu';
 import ExpiredNotice from '@/components/public-menu/ExpiredNotice';
+
+// Request-memoized tenant resolver for per-request deduplication between generateMetadata and Page
+const getCachedTenantBySlug = cache(async (slug: string) => resolveTenantBySlug(slug));
 
 interface PageProps {
   params: Promise<{
@@ -12,11 +16,12 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const tenantData = await resolveTenantBySlug(slug);
+  const tenantData = await getCachedTenantBySlug(slug);
 
   if (!tenantData || !tenantData.restaurant) {
     return {
       title: 'Restaurant Not Found | ZaaykaTech',
+      description: 'The requested digital restaurant menu could not be found.',
       robots: { index: false, follow: false },
     };
   }
@@ -45,7 +50,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function PublicMenuPage({ params }: PageProps) {
   const { slug } = await params;
-  const tenantData = await resolveTenantBySlug(slug);
+  const tenantData = await getCachedTenantBySlug(slug);
 
   // If restaurant doesn't exist, or is in draft/preview/suspended mode -> return 404
   if (!tenantData) {
