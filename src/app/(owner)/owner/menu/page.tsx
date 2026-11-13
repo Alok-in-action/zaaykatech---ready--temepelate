@@ -148,7 +148,13 @@ export default function MenuManagementPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/owner/menu/ai-import"
+            className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+          >
+            <span>✨ Import with AI</span>
+          </Link>
           <Link
             href="/owner/settings"
             className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-xl transition-all"
