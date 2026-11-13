@@ -97,9 +97,10 @@ BEGIN
         );
     END IF;
 
-    -- Evaluate active vs expired based on subscription or trial
+    -- Evaluate active vs expired based on subscription or trial (including 24h grace period matching calculateSiteStatus)
     IF v_restaurant.subscription_end_date IS NOT NULL THEN
-        IF v_restaurant.subscription_end_date < CURRENT_DATE THEN
+        -- Allow 24 hours grace period after subscription date (converted to timestamp)
+        IF (v_restaurant.subscription_end_date::timestamp + interval '24 hours') < timezone('utc'::text, now()) THEN
             RETURN jsonb_build_object(
                 'status', 'expired',
                 'site_status', 'expired',
@@ -107,13 +108,21 @@ BEGIN
             );
         END IF;
     ELSIF v_restaurant.trial_ends_at IS NOT NULL THEN
-        IF v_restaurant.trial_ends_at < timezone('utc'::text, now()) THEN
+        -- Allow 24 hours grace period after trial ends
+        IF (v_restaurant.trial_ends_at + interval '24 hours') < timezone('utc'::text, now()) THEN
             RETURN jsonb_build_object(
                 'status', 'expired',
                 'site_status', 'expired',
                 'restaurant_name', v_restaurant.name
             );
         END IF;
+    ELSE
+        -- No subscription and no trial: return expired
+        RETURN jsonb_build_object(
+            'status', 'expired',
+            'site_status', 'expired',
+            'restaurant_name', v_restaurant.name
+        );
     END IF;
 
     -- Fetch active menu categories

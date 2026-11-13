@@ -4,10 +4,12 @@ import { Restaurant, SiteStatus } from '@/types/database';
 export type OwnerLifecycleState =
   | 'no_restaurant'
   | 'onboarding_in_progress'
+  | 'offline'
   | 'trial_active'
   | 'grace_period'
   | 'subscription_active'
-  | 'expired';
+  | 'expired'
+  | 'error';
 
 export interface OwnerLifecycleResult {
   state: OwnerLifecycleState;
@@ -22,6 +24,7 @@ export interface OwnerLifecycleResult {
   isExpired: boolean;
   isLive: boolean;
   siteStatus: SiteStatus;
+  error?: string;
 }
 
 /**
@@ -88,7 +91,26 @@ export async function getOwnerLifecycle(providedProfileId?: string): Promise<Own
     .is('archived_at', null)
     .maybeSingle();
 
-  if (error || !restaurantData) {
+  // Return a retryable error when the restaurant query fails; return no_restaurant only after a successful empty lookup.
+  if (error) {
+    return {
+      state: 'error',
+      restaurant: null,
+      profileId,
+      step: 1,
+      trialEndsAt: null,
+      subscriptionEndDate: null,
+      daysRemaining: null,
+      hoursRemaining: null,
+      isGracePeriod: false,
+      isExpired: false,
+      isLive: false,
+      siteStatus: 'draft',
+      error: `Failed to load restaurant lifecycle: ${error.message}`,
+    };
+  }
+
+  if (!restaurantData) {
     return {
       state: 'no_restaurant',
       restaurant: null,
@@ -109,12 +131,45 @@ export async function getOwnerLifecycle(providedProfileId?: string): Promise<Own
   const now = new Date();
   const gracePeriodHours = Number(process.env.GRACE_PERIOD_HOURS || 24);
 
-  // 1. Incomplete onboarding check
-  if (
-    restaurant.onboarding_status !== 'completed' ||
-    restaurant.status !== 'published' ||
-    !restaurant.published_at
-  ) {
+  // 1. Honor explicit administrative or owner suspension override
+  if (restaurant.status === 'suspended' || restaurant.site_status === 'suspended') {
+    return {
+      state: 'expired',
+      restaurant,
+      profileId,
+      step: 5,
+      trialEndsAt: restaurant.trial_ends_at,
+      subscriptionEndDate: restaurant.subscription_end_date,
+      daysRemaining: 0,
+      hoursRemaining: 0,
+      isGracePeriod: false,
+      isExpired: true,
+      isLive: false,
+      siteStatus: 'suspended',
+    };
+  }
+
+  // 2. Completed but unpublished restaurant: "offline" state
+  // Keeps full dashboard access without returning to onboarding
+  if (restaurant.onboarding_status === 'completed' && restaurant.status !== 'published') {
+    return {
+      state: 'offline',
+      restaurant,
+      profileId,
+      step: 5,
+      trialEndsAt: restaurant.trial_ends_at,
+      subscriptionEndDate: restaurant.subscription_end_date,
+      daysRemaining: null,
+      hoursRemaining: null,
+      isGracePeriod: false,
+      isExpired: false,
+      isLive: false,
+      siteStatus: restaurant.site_status === 'preview' ? 'preview' : 'draft',
+    };
+  }
+
+  // 3. Incomplete onboarding check
+  if (restaurant.onboarding_status !== 'completed') {
     return {
       state: 'onboarding_in_progress',
       restaurant,
@@ -128,6 +183,24 @@ export async function getOwnerLifecycle(providedProfileId?: string): Promise<Own
       isExpired: false,
       isLive: false,
       siteStatus: 'draft',
+    };
+  }
+
+  // 4. Honor preview override
+  if (restaurant.status === 'preview' || restaurant.site_status === 'preview') {
+    return {
+      state: 'offline',
+      restaurant,
+      profileId,
+      step: 5,
+      trialEndsAt: restaurant.trial_ends_at,
+      subscriptionEndDate: restaurant.subscription_end_date,
+      daysRemaining: null,
+      hoursRemaining: null,
+      isGracePeriod: false,
+      isExpired: false,
+      isLive: false,
+      siteStatus: 'preview',
     };
   }
 
@@ -246,19 +319,20 @@ export async function getOwnerLifecycle(providedProfileId?: string): Promise<Own
     };
   }
 
-  // Fallback if published but trial_ends_at is null: treat as trialing
+  // Fallback: published but neither subscription nor trial_ends_at is set.
+  // Return non-live expired state instead of fabricating "24 hours left".
   return {
-    state: 'trial_active',
+    state: 'expired',
     restaurant,
     profileId,
     step: 5,
     trialEndsAt: null,
     subscriptionEndDate: null,
-    daysRemaining: 1,
-    hoursRemaining: 24,
+    daysRemaining: 0,
+    hoursRemaining: 0,
     isGracePeriod: false,
-    isExpired: false,
-    isLive: true,
-    siteStatus: 'trialing',
+    isExpired: true,
+    isLive: false,
+    siteStatus: 'expired',
   };
 }

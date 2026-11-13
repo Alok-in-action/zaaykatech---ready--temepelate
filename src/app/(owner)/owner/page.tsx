@@ -21,6 +21,11 @@ import {
 export default async function OwnerDashboardPage() {
   const lifecycle = await getOwnerLifecycle();
 
+  // Handle transient query failure with retryable error
+  if (lifecycle.state === 'error') {
+    throw new Error(lifecycle.error || 'Temporary database error retrieving restaurant. Please refresh to retry.');
+  }
+
   // 1. If owner has no restaurant, route directly to step 1
   if (lifecycle.state === 'no_restaurant') {
     redirect('/owner/onboarding');
@@ -55,6 +60,7 @@ export default async function OwnerDashboardPage() {
   const itemCount = itmCount || 0;
   const publicUrl = `/r/${restaurant.slug}`;
 
+  const isOffline = lifecycle.state === 'offline';
   const isExpired = lifecycle.state === 'expired';
   const isGrace = lifecycle.state === 'grace_period';
   const isTrial = lifecycle.state === 'trial_active';
@@ -70,6 +76,33 @@ export default async function OwnerDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* 0. Offline Notice Banner (Completed but unpublished) */}
+      {isOffline && (
+        <div className="bg-amber-50 border border-amber-300 rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
+              <AlertTriangle className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <h2 className="font-serif text-lg font-bold text-amber-950">
+                Menu Currently Unpublished (Offline)
+              </h2>
+              <p className="text-xs text-amber-800 mt-1 max-w-xl">
+                Your restaurant setup is complete, but the public menu is offline. You can edit your menu and branding below, or publish when ready to welcome diners.
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0 w-full sm:w-auto">
+            <Link
+              href="/owner/onboarding?edit=true"
+              className="inline-flex items-center justify-center px-4 py-2.5 bg-amber-800 hover:bg-amber-900 text-white text-xs font-semibold rounded-2xl shadow-xs transition-all w-full sm:w-auto"
+            >
+              Review &amp; Publish
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* 1. Subscription Expired Warning Banner (if expired) */}
       {isExpired && (
         <div className="bg-rose-50 border-2 border-rose-300 rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

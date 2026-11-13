@@ -15,13 +15,16 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
 
   const lifecycle = await getOwnerLifecycle();
 
-  // If the owner has already completed and published, send them directly to dashboard
+  if (lifecycle.state === 'error') {
+    throw new Error(lifecycle.error || 'Temporary database error retrieving restaurant. Please refresh to retry.');
+  }
+
+  // If the owner has already completed and published (or offline), send them directly to dashboard
   // unless they explicitly requested edit mode (?edit=true)
   if (
     !isExplicitEdit &&
     lifecycle.restaurant &&
-    lifecycle.restaurant.onboarding_status === 'completed' &&
-    lifecycle.restaurant.status === 'published'
+    (lifecycle.restaurant.onboarding_status === 'completed' || lifecycle.state === 'offline')
   ) {
     redirect('/owner');
   }

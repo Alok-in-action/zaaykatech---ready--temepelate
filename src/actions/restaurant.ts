@@ -352,7 +352,7 @@ export async function publishRestaurantAction(restaurantId: string) {
   // Verify ownership
   const { data: restaurant } = await supabase
     .from('restaurants')
-    .select('id, owner_profile_id, published_at')
+    .select('id, owner_profile_id, published_at, trial_ends_at, subscription_end_date, onboarding_completed_at')
     .eq('id', restaurantId)
     .single();
 
@@ -381,22 +381,38 @@ export async function publishRestaurantAction(restaurantId: string) {
   }
 
   // 2. Set published_at and start 24h trial timer upon publish
+  // RULE: Set trial_ends_at only on the first publication (when published_at is null). Do not restart it on republish.
   const now = new Date();
+  const isFirstPublication = !restaurant.published_at;
   const publishedAt = restaurant.published_at || now.toISOString();
   const trialHours = Number(process.env.TRIAL_DURATION_HOURS || 24);
-  const trialEndsAt = new Date(now.getTime() + trialHours * 60 * 60 * 1000).toISOString();
+
+  const trialEndsAt = isFirstPublication
+    ? new Date(now.getTime() + trialHours * 60 * 60 * 1000).toISOString()
+    : restaurant.trial_ends_at;
+
+  const updates: Record<string, unknown> = {
+    status: 'published',
+    published_at: publishedAt,
+    onboarding_status: 'completed',
+    onboarding_completed_at: restaurant.onboarding_completed_at || now.toISOString(),
+    onboarding_current_step: 5,
+  };
+
+  if (isFirstPublication || !restaurant.trial_ends_at) {
+    updates.trial_ends_at = trialEndsAt;
+    updates.site_status = 'trialing';
+  } else if (restaurant.subscription_end_date) {
+    const subEnd = new Date(restaurant.subscription_end_date);
+    updates.site_status = subEnd >= now ? 'active' : 'expired';
+  } else if (restaurant.trial_ends_at) {
+    const trialEnd = new Date(restaurant.trial_ends_at);
+    updates.site_status = trialEnd >= now ? 'trialing' : 'expired';
+  }
 
   const { error } = await supabase
     .from('restaurants')
-    .update({
-      status: 'published',
-      published_at: publishedAt,
-      trial_ends_at: trialEndsAt,
-      site_status: 'trialing',
-      onboarding_status: 'completed',
-      onboarding_completed_at: now.toISOString(),
-      onboarding_current_step: 5,
-    })
+    .update(updates)
     .eq('id', restaurantId);
 
   if (error) return { success: false, error: error.message };
