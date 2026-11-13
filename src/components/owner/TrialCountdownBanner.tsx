@@ -3,15 +3,20 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SiteStatus } from '@/types/database';
+import { RazorpayCheckoutButton } from '@/components/owner/billing/RazorpayCheckoutButton';
 
 interface TrialCountdownBannerProps {
   trialEndsAt: string;
   siteStatus: SiteStatus;
+  restaurantId?: string;
+  subscriptionEndDate?: string | null;
 }
 
 export function TrialCountdownBanner({
   trialEndsAt,
   siteStatus,
+  restaurantId = '00000000-0000-0000-0000-000000000000',
+  subscriptionEndDate,
 }: TrialCountdownBannerProps) {
   const [timeLeft, setTimeLeft] = useState<{
     hours: number;
@@ -40,9 +45,33 @@ export function TrialCountdownBanner({
     return () => clearInterval(interval);
   }, [trialEndsAt]);
 
-  // Don't render banner if restaurant already has an active paid subscription
+  // Active Paid Subscription State
   if (siteStatus === 'active') {
-    return null;
+    if (!subscriptionEndDate) return null;
+    const formattedDate = new Date(subscriptionEndDate).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    return (
+      <div className="bg-emerald-950 text-emerald-200 border-b border-emerald-800/40 px-4 py-2 text-xs">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-emerald-400">✨</span>
+            <span>
+              <strong>Yearly Pro Plan Active:</strong> Your public QR menu is live. Subscription valid until <strong>{formattedDate}</strong>.
+            </span>
+          </div>
+          <Link
+            href="/owner/billing"
+            className="text-emerald-300 hover:text-white underline text-[11px] font-medium"
+          >
+            Manage Billing &amp; Invoices →
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   // Grace Period State
@@ -56,12 +85,20 @@ export function TrialCountdownBanner({
               <strong>Trial Expired — 24-Hour Grace Period Active.</strong> Your public menu is still live, but will go offline soon.
             </span>
           </div>
-          <Link
-            href="/owner/billing"
-            className="bg-white text-orange-900 hover:bg-stone-100 px-3.5 py-1 rounded-full text-[11px] font-bold transition-all shadow-sm flex-shrink-0"
-          >
-            Upgrade Now (₹2999/yr)
-          </Link>
+          <div className="flex items-center gap-2">
+            <RazorpayCheckoutButton
+              restaurantId={restaurantId}
+              label="Upgrade Now (₹2,999/yr)"
+              variant="secondary"
+              className="bg-white text-orange-950 hover:bg-stone-100 h-7 text-[11px] font-bold px-3 rounded-full shadow-sm"
+            />
+            <Link
+              href="/owner/billing"
+              className="text-white hover:underline text-[11px] font-medium hidden sm:inline"
+            >
+              Details
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -78,12 +115,20 @@ export function TrialCountdownBanner({
               <strong>Public QR Menu Offline.</strong> All your restaurant data, QR code, and dishes are saved safely.
             </span>
           </div>
-          <Link
-            href="/owner/billing"
-            className="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-1 rounded-full text-[11px] font-bold transition-all shadow-sm flex-shrink-0"
-          >
-            Reactivate Menu (₹2999/yr)
-          </Link>
+          <div className="flex items-center gap-2">
+            <RazorpayCheckoutButton
+              restaurantId={restaurantId}
+              label="Reactivate Menu (₹2,999/yr)"
+              variant="default"
+              className="bg-rose-600 hover:bg-rose-500 text-white h-7 text-[11px] font-bold px-3 rounded-full shadow-sm"
+            />
+            <Link
+              href="/owner/billing"
+              className="text-stone-300 hover:text-white underline text-[11px] font-medium hidden sm:inline"
+            >
+              Billing
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -102,15 +147,23 @@ export function TrialCountdownBanner({
               : `${timeLeft.hours}h ${timeLeft.minutes}m remaining`}
           </span>
           <span className="hidden md:inline text-stone-900 text-[11px]">
-            — Full features unlocked. Public menu is ready to publish.
+            — Full features unlocked. Public menu is live.
           </span>
         </div>
-        <Link
-          href="/owner/billing"
-          className="bg-stone-950 hover:bg-stone-800 text-white px-3.5 py-1 rounded-full text-[11px] font-bold transition-all shadow-sm flex-shrink-0"
-        >
-          Keep Live (₹2999/yr)
-        </Link>
+        <div className="flex items-center gap-2">
+          <RazorpayCheckoutButton
+            restaurantId={restaurantId}
+            label="Keep Live (₹2,999/yr)"
+            variant="default"
+            className="bg-stone-950 hover:bg-stone-800 text-white h-7 text-[11px] font-bold px-3 rounded-full shadow-sm"
+          />
+          <Link
+            href="/owner/billing"
+            className="text-stone-900 hover:underline text-[11px] font-medium hidden sm:inline"
+          >
+            Plan Details
+          </Link>
+        </div>
       </div>
     </div>
   );

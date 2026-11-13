@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   updateRestaurantDetails,
   publishRestaurantAction,
@@ -129,7 +130,23 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* 2. Permanent Public Slug Card (Correction 7) */}
+      {/* 2. Subscription & Plan Summary */}
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="font-serif text-lg font-bold text-stone-900">Subscription &amp; Billing</h2>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Yearly Pro Plan is ₹2,999/year. Manual renewal only, zero recurring surprise debits.
+          </p>
+        </div>
+        <Link
+          href="/owner/billing"
+          className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold rounded-xl transition-all shadow-sm flex items-center gap-1.5 shrink-0"
+        >
+          <span>💳 Manage Plan &amp; Billing</span>
+        </Link>
+      </div>
+
+      {/* 3. Permanent Public Slug Card (Correction 7) */}
       <div className="bg-stone-50 border border-stone-200/90 rounded-3xl p-6 sm:p-8 space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
