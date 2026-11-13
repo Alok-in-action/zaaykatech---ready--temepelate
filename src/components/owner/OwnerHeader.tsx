@@ -159,8 +159,8 @@ export function OwnerHeader({ userEmail, activeRestaurant, isOnboarding }: Owner
         </div>
       </div>
 
-      {/* Subnavigation Tabs */}
-      <nav className="border-t border-black/[0.05] bg-white/40 backdrop-blur-md overflow-x-auto no-scrollbar">
+      {/* Desktop Subnavigation Tabs (Hidden on mobile; mobile uses bottom tab bar) */}
+      <nav className="hidden md:block border-t border-black/[0.05] bg-white/40 backdrop-blur-md overflow-x-auto no-scrollbar">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex gap-1 sm:gap-1.5 py-1.5 text-xs font-medium">
           {navLinks.map((link) => {
             const isActive =

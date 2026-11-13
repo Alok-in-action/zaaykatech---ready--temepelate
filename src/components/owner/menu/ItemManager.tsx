@@ -158,24 +158,26 @@ export function ItemManager({
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* Reorder Buttons (Only when not in search mode) */}
                 {!searchQuery && (
-                  <div className="flex flex-col -space-y-0.5 pt-1 flex-shrink-0">
+                  <div className="flex flex-col gap-0.5 pt-0.5 shrink-0">
                     <button
                       type="button"
                       disabled={idx === 0}
                       onClick={() => handleMove(idx, 'up')}
-                      className="p-0.5 text-stone-400 hover:text-stone-900 disabled:opacity-20 cursor-pointer"
+                      className="min-h-[28px] min-w-[28px] p-1 flex items-center justify-center text-stone-500 hover:text-stone-900 active:scale-[0.97] disabled:opacity-20 cursor-pointer rounded-lg hover:bg-stone-100 touch-manipulation"
                       title="Move Up"
+                      aria-label="Move dish up"
                     >
-                      <ChevronUp className="w-3 h-3" />
+                      <ChevronUp className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
                       disabled={idx === filteredItems.length - 1}
                       onClick={() => handleMove(idx, 'down')}
-                      className="p-0.5 text-stone-400 hover:text-stone-900 disabled:opacity-20 cursor-pointer"
+                      className="min-h-[28px] min-w-[28px] p-1 flex items-center justify-center text-stone-500 hover:text-stone-900 active:scale-[0.97] disabled:opacity-20 cursor-pointer rounded-lg hover:bg-stone-100 touch-manipulation"
                       title="Move Down"
+                      aria-label="Move dish down"
                     >
-                      <ChevronDown className="w-3 h-3" />
+                      <ChevronDown className="w-4 h-4" />
                     </button>
                   </div>
                 )}

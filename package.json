@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test": "playwright test",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -66,6 +67,7 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.4.6",
+    "@playwright/test": "^1.65.1",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.23.1",

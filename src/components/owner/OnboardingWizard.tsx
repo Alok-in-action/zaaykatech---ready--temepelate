@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useTransition } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -12,8 +13,20 @@ import {
 import { createCategory } from '@/actions/category';
 import { createMenuItem } from '@/actions/item';
 import { MediaUploader } from './MediaUploader';
-import { QRCodeGenerator } from './QRCodeGenerator';
 import { ONBOARDING_I18N, OnboardingStrings } from '@/lib/i18n/onboarding';
+
+const QRCodeGenerator = dynamic(
+  () => import('./QRCodeGenerator').then((mod) => mod.QRCodeGenerator),
+  {
+    loading: () => (
+      <div className="w-full h-48 flex flex-col items-center justify-center bg-stone-50 rounded-2xl animate-pulse">
+        <Loader2 className="w-6 h-6 animate-spin text-[#8B4A27]" />
+        <span className="text-xs text-stone-500 mt-2 font-medium">Generating QR code...</span>
+      </div>
+    ),
+    ssr: false,
+  }
+);
 import {
   SubStepId,
   SUB_STEPS,
@@ -64,6 +77,8 @@ interface OnboardingWizardProps {
   initialCategories: MenuCategory[];
   initialItems: MenuItem[];
   isFreshPublish?: boolean;
+  onCreateRestaurant?: (input: { name: string; onboarding_current_step: number }) => Promise<{ success: boolean; restaurant?: Restaurant; error?: string }>;
+  onSaveStep?: (restaurantId: string, step: number, data: any) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function OnboardingWizard({
@@ -72,6 +87,8 @@ export function OnboardingWizard({
   initialCategories = [],
   initialItems = [],
   isFreshPublish = false,
+  onCreateRestaurant,
+  onSaveStep,
 }: OnboardingWizardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -179,7 +196,8 @@ export function OnboardingWizard({
     if (restaurant && autoSaveData) {
       try {
         setSaving(true);
-        const res = await saveOnboardingStepAction(restaurant.id, stepCode, autoSaveData);
+        const saveFn = onSaveStep || saveOnboardingStepAction;
+        const res = await saveFn(restaurant.id, stepCode, autoSaveData);
         if (!res.success) {
           setError(res.error || 'Failed to save progress.');
           setSaving(false);
@@ -232,7 +250,8 @@ export function OnboardingWizard({
     if (!restaurant) {
       setLoading(true);
       try {
-        const res = await createRestaurant({
+        const createFn = onCreateRestaurant || createRestaurant;
+        const res = await createFn({
           name: trimmed,
           onboarding_current_step: 12, // Move to 1b
         });
@@ -545,9 +564,9 @@ export function OnboardingWizard({
   );
 
   return (
-    <div className="w-full max-w-xl mx-auto px-4 sm:px-6 py-4 flex flex-col min-h-[calc(100vh-80px)] justify-between">
+    <div className="w-full max-w-xl mx-auto px-4 py-3 flex flex-col min-h-[100dvh] justify-between overflow-x-hidden">
       {/* ---------------- Top Bar: Step Indicator & Saved Tick ---------------- */}
-      <div className="w-full mb-6">
+      <div className="w-full mb-4">
         <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-xs sm:text-sm font-semibold tracking-wide text-stone-600">
             {t.header.stepFormat(mainStep, subIndex, totalSub)}
@@ -570,7 +589,7 @@ export function OnboardingWizard({
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full h-2 bg-stone-200/80 rounded-full overflow-hidden">
+        <div className="w-full h-1.5 bg-stone-200/80 rounded-full overflow-hidden">
           <div
             className="h-full bg-[#8B4A27] transition-all duration-300 ease-out"
             style={{ width: `${progressPercent}%` }}
@@ -593,12 +612,19 @@ export function OnboardingWizard({
             </div>
 
             <div className="pt-2">
+              <label htmlFor="restaurant-name" className="block text-sm font-semibold text-stone-800 mb-1.5">
+                Restaurant Name
+              </label>
               <input
+                id="restaurant-name"
                 type="text"
+                autoComplete="organization"
+                enterKeyHint="next"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                 placeholder={t.step1.name.placeholder}
-                className="w-full min-h-[56px] text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27] transition-colors"
+                className="w-full min-h-[56px] h-14 text-base sm:text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27] transition-colors"
                 autoFocus
               />
               <p className="text-sm text-stone-500 mt-1.5">{t.step1.name.example}</p>
@@ -617,92 +643,103 @@ export function OnboardingWizard({
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              {[
-                {
-                  key: 'Pure Veg',
-                  label: t.step1.foodType.options.veg.label,
-                  desc: t.step1.foodType.options.veg.desc,
-                  icon: Leaf,
-                  iconColor: 'text-emerald-700',
-                },
-                {
-                  key: 'Veg & Non-Veg',
-                  label: t.step1.foodType.options.nonveg.label,
-                  desc: t.step1.foodType.options.nonveg.desc,
-                  icon: UtensilsCrossed,
-                  iconColor: 'text-amber-700',
-                },
-                {
-                  key: 'Cafe',
-                  label: t.step1.foodType.options.cafe.label,
-                  desc: t.step1.foodType.options.cafe.desc,
-                  icon: Coffee,
-                  iconColor: 'text-amber-800',
-                },
-                {
-                  key: 'Sweets',
-                  label: t.step1.foodType.options.sweets.label,
-                  desc: t.step1.foodType.options.sweets.desc,
-                  icon: Sparkles,
-                  iconColor: 'text-orange-600',
-                },
-                {
-                  key: 'Bakery',
-                  label: t.step1.foodType.options.bakery.label,
-                  desc: t.step1.foodType.options.bakery.desc,
-                  icon: Cake,
-                  iconColor: 'text-rose-700',
-                },
-                {
-                  key: 'Other',
-                  label: t.step1.foodType.options.other.label,
-                  desc: t.step1.foodType.options.other.desc,
-                  icon: MoreHorizontal,
-                  iconColor: 'text-stone-700',
-                },
-              ].map((opt) => {
-                const isSelected = selectedFoodTypeOption === opt.key;
-                const Icon = opt.icon;
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() => {
-                      setSelectedFoodTypeOption(opt.key);
-                      setError(null);
-                    }}
-                    className={`min-h-[72px] p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
-                      isSelected
-                        ? 'border-[#8B4A27] bg-[#8B4A27]/5 shadow-xs'
-                        : 'border-stone-200 bg-white hover:border-stone-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <Icon className={`w-5 h-5 ${opt.iconColor}`} />
-                      {isSelected && (
-                        <span className="w-5 h-5 rounded-full bg-[#8B4A27] text-white flex items-center justify-center">
-                          <Check className="w-3.5 h-3.5" />
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-2">
-                      <div className="font-semibold text-base text-stone-900">{opt.label}</div>
-                      <div className="text-xs text-stone-500 mt-0.5 line-clamp-1">{opt.desc}</div>
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="pt-1">
+              <span className="block text-sm font-semibold text-stone-800 mb-2">
+                Choose food type
+              </span>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  {
+                    key: 'Pure Veg',
+                    label: t.step1.foodType.options.veg.label,
+                    desc: t.step1.foodType.options.veg.desc,
+                    icon: Leaf,
+                    iconColor: 'text-emerald-700',
+                  },
+                  {
+                    key: 'Veg & Non-Veg',
+                    label: t.step1.foodType.options.nonveg.label,
+                    desc: t.step1.foodType.options.nonveg.desc,
+                    icon: UtensilsCrossed,
+                    iconColor: 'text-amber-700',
+                  },
+                  {
+                    key: 'Cafe',
+                    label: t.step1.foodType.options.cafe.label,
+                    desc: t.step1.foodType.options.cafe.desc,
+                    icon: Coffee,
+                    iconColor: 'text-amber-800',
+                  },
+                  {
+                    key: 'Sweets',
+                    label: t.step1.foodType.options.sweets.label,
+                    desc: t.step1.foodType.options.sweets.desc,
+                    icon: Sparkles,
+                    iconColor: 'text-orange-600',
+                  },
+                  {
+                    key: 'Bakery',
+                    label: t.step1.foodType.options.bakery.label,
+                    desc: t.step1.foodType.options.bakery.desc,
+                    icon: Cake,
+                    iconColor: 'text-rose-700',
+                  },
+                  {
+                    key: 'Other',
+                    label: t.step1.foodType.options.other.label,
+                    desc: t.step1.foodType.options.other.desc,
+                    icon: MoreHorizontal,
+                    iconColor: 'text-stone-700',
+                  },
+                ].map((opt) => {
+                  const isSelected = selectedFoodTypeOption === opt.key;
+                  const Icon = opt.icon;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => {
+                        setSelectedFoodTypeOption(opt.key);
+                        setError(null);
+                      }}
+                      className={`min-h-[56px] p-3.5 rounded-2xl border-2 text-left transition-all active:scale-[0.97] touch-manipulation flex flex-col justify-between cursor-pointer ${
+                        isSelected
+                          ? 'border-[#8B4A27] bg-[#8B4A27]/5 shadow-xs'
+                          : 'border-stone-200 bg-white hover:border-stone-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <Icon className={`w-5 h-5 ${opt.iconColor}`} />
+                        {isSelected && (
+                          <span className="w-5 h-5 rounded-full bg-[#8B4A27] text-white flex items-center justify-center">
+                            <Check className="w-3.5 h-3.5" />
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2">
+                        <div className="font-semibold text-base text-stone-900">{opt.label}</div>
+                        <div className="text-xs text-stone-500 mt-0.5 line-clamp-1">{opt.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {selectedFoodTypeOption === 'Other' && (
               <div className="pt-2 animate-in fade-in">
+                <label htmlFor="other-cuisine" className="block text-sm font-semibold text-stone-800 mb-1.5">
+                  Describe your food
+                </label>
                 <input
+                  id="other-cuisine"
                   type="text"
+                  enterKeyHint="next"
                   value={otherFoodType}
                   onChange={(e) => setOtherFoodType(e.target.value)}
+                  onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                   placeholder={t.step1.foodType.otherPlaceholder}
-                  className="w-full min-h-[56px] text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
+                  className="w-full min-h-[56px] h-14 text-base sm:text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
                   autoFocus
                 />
               </div>
@@ -722,16 +759,24 @@ export function OnboardingWizard({
             </div>
 
             <div className="pt-2">
+              <label htmlFor="phone-number" className="block text-sm font-semibold text-stone-800 mb-1.5">
+                Mobile Phone Number
+              </label>
               <div className="relative flex items-center">
                 <span className="absolute left-4 text-base font-semibold text-stone-500">
                   +91
                 </span>
                 <input
+                  id="phone-number"
                   type="tel"
+                  autoComplete="tel"
+                  inputMode="numeric"
+                  enterKeyHint="next"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                   placeholder={t.step1.phone.placeholder}
-                  className="w-full min-h-[56px] text-lg pl-14 pr-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27] transition-colors"
+                  className="w-full min-h-[56px] h-14 text-base sm:text-lg pl-14 pr-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27] transition-colors"
                   autoFocus
                 />
               </div>
@@ -752,12 +797,19 @@ export function OnboardingWizard({
             </div>
 
             <div className="pt-2">
+              <label htmlFor="restaurant-city" className="block text-sm font-semibold text-stone-800 mb-1.5">
+                City Location
+              </label>
               <input
+                id="restaurant-city"
                 type="text"
+                autoComplete="address-level2"
+                enterKeyHint="done"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
+                onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                 placeholder={t.step1.city.placeholder}
-                className="w-full min-h-[56px] text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27] transition-colors"
+                className="w-full min-h-[56px] h-14 text-base sm:text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27] transition-colors"
                 autoFocus
               />
               <p className="text-sm text-stone-500 mt-1.5">{t.step1.city.example}</p>
@@ -918,14 +970,22 @@ export function OnboardingWizard({
             </div>
 
             <div className="pt-2 space-y-3">
-              <input
-                type="text"
-                value={categoryName}
-                onChange={(e) => setCategoryName(e.target.value)}
-                placeholder={t.step3.category.placeholder}
-                className="w-full min-h-[56px] text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
-                autoFocus
-              />
+              <div>
+                <label htmlFor="category-name" className="block text-sm font-semibold text-stone-800 mb-1.5">
+                  Category Name
+                </label>
+                <input
+                  id="category-name"
+                  type="text"
+                  enterKeyHint="next"
+                  value={categoryName}
+                  onChange={(e) => setCategoryName(e.target.value)}
+                  onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                  placeholder={t.step3.category.placeholder}
+                  className="w-full min-h-[56px] h-14 text-base sm:text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
+                  autoFocus
+                />
+              </div>
 
               {/* Suggestion Chips */}
               <div>
@@ -938,7 +998,7 @@ export function OnboardingWizard({
                       key={chip}
                       type="button"
                       onClick={() => setCategoryName(chip)}
-                      className="px-3.5 py-2 text-sm font-medium bg-white border border-stone-300 hover:border-[#8B4A27] hover:bg-[#8B4A27]/5 text-stone-800 rounded-full transition-colors cursor-pointer"
+                      className="min-h-[44px] px-4 py-2 text-sm font-medium bg-white border border-stone-300 hover:border-[#8B4A27] hover:bg-[#8B4A27]/5 text-stone-800 rounded-full transition-all active:scale-[0.97] touch-manipulation cursor-pointer"
                     >
                       + {chip}
                     </button>
@@ -970,21 +1030,24 @@ export function OnboardingWizard({
 
             <div className="pt-2 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">
+                <label htmlFor="dish-name" className="block text-sm font-semibold text-stone-800 mb-1">
                   {t.step3.dish.nameLabel}
                 </label>
                 <input
+                  id="dish-name"
                   type="text"
+                  enterKeyHint="next"
                   value={dishName}
                   onChange={(e) => setDishName(e.target.value)}
+                  onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                   placeholder={t.step3.dish.namePlaceholder}
-                  className="w-full min-h-[56px] text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
+                  className="w-full min-h-[56px] h-14 text-base sm:text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">
+                <label htmlFor="dish-price" className="block text-sm font-semibold text-stone-800 mb-1">
                   {t.step3.dish.priceLabel}
                 </label>
                 <div className="relative flex items-center">
@@ -992,26 +1055,29 @@ export function OnboardingWizard({
                     ₹
                   </span>
                   <input
-                    type="number"
-                    min="1"
-                    step="1"
+                    id="dish-price"
+                    type="text"
+                    inputMode="decimal"
+                    enterKeyHint="done"
                     value={dishPrice}
                     onChange={(e) => setDishPrice(e.target.value)}
+                    onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                     placeholder={t.step3.dish.pricePlaceholder}
-                    className="w-full min-h-[56px] text-lg pl-9 pr-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
+                    className="w-full min-h-[56px] h-14 text-base sm:text-lg pl-9 pr-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
                   />
                 </div>
               </div>
 
               {categories.length > 1 && (
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">
+                  <label htmlFor="dish-category" className="block text-sm font-semibold text-stone-800 mb-1">
                     {t.step3.dish.categoryLabel}
                   </label>
                   <select
+                    id="dish-category"
                     value={selectedCategoryId}
                     onChange={(e) => setSelectedCategoryId(e.target.value)}
-                    className="w-full min-h-[56px] text-base px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
+                    className="w-full min-h-[56px] h-14 text-base px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -1047,7 +1113,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={() => setSubStep('3b')}
-                className="w-full min-h-[56px] px-4 py-3 bg-white hover:bg-stone-50 border-2 border-stone-300 hover:border-[#8B4A27] text-stone-900 font-semibold text-base rounded-2xl transition-all flex items-center justify-between cursor-pointer"
+                className="w-full min-h-[56px] px-4 py-3 bg-white hover:bg-stone-50 border-2 border-stone-300 hover:border-[#8B4A27] text-stone-900 font-semibold text-base rounded-2xl transition-all active:scale-[0.97] touch-manipulation flex items-center justify-between cursor-pointer"
               >
                 <span className="flex items-center gap-2">
                   <Plus className="w-5 h-5 text-[#8B4A27]" />
@@ -1058,7 +1124,7 @@ export function OnboardingWizard({
 
               <Link
                 href="/owner/menu/import"
-                className="w-full min-h-[56px] px-4 py-3 bg-white hover:bg-stone-50 border-2 border-stone-300 hover:border-[#8B4A27] text-stone-900 font-semibold text-base rounded-2xl transition-all flex items-center justify-between cursor-pointer"
+                className="w-full min-h-[56px] px-4 py-3 bg-white hover:bg-stone-50 border-2 border-stone-300 hover:border-[#8B4A27] text-stone-900 font-semibold text-base rounded-2xl transition-all active:scale-[0.97] touch-manipulation flex items-center justify-between cursor-pointer"
               >
                 <span className="flex items-center gap-2">
                   <Camera className="w-5 h-5 text-amber-700" />
@@ -1070,7 +1136,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleStep3cProceed}
-                className="w-full min-h-[56px] px-4 py-3 bg-[#8B4A27]/10 hover:bg-[#8B4A27]/20 border-2 border-[#8B4A27]/30 text-[#8B4A27] font-semibold text-base rounded-2xl transition-all flex items-center justify-between cursor-pointer"
+                className="w-full min-h-[56px] px-4 py-3 bg-[#8B4A27]/10 hover:bg-[#8B4A27]/20 border-2 border-[#8B4A27]/30 text-[#8B4A27] font-semibold text-base rounded-2xl transition-all active:scale-[0.97] touch-manipulation flex items-center justify-between cursor-pointer"
               >
                 <span>{t.step3.more.doThisLater}</span>
                 <ArrowRight className="w-4 h-4 text-[#8B4A27]" />
@@ -1272,7 +1338,10 @@ export function OnboardingWizard({
 
       {/* ---------------- Bottom Bar: Navigation Actions ---------------- */}
       {subStep !== '5b' && (
-        <div className="w-full pt-4 pb-2 border-t border-stone-200/80 bg-[#FAF8F5] sticky bottom-0">
+        <div
+          className="w-full pt-3 bg-[#FAF8F5]/95 backdrop-blur-md sticky bottom-0 z-30 border-t border-stone-200/80 mt-auto"
+          style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+        >
           <div className="flex flex-col gap-2">
             {/* Primary Action Button (at least 56px tall) */}
             {subStep === '1a' && (
@@ -1280,7 +1349,7 @@ export function OnboardingWizard({
                 type="button"
                 onClick={handleStep1aContinue}
                 disabled={loading}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : t.navigation.continue}
                 {!loading && <ArrowRight className="w-5 h-5" />}
@@ -1291,7 +1360,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleStep1bContinue}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {t.navigation.continue}
                 <ArrowRight className="w-5 h-5" />
@@ -1302,7 +1371,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleStep1cContinue}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {t.navigation.continue}
                 <ArrowRight className="w-5 h-5" />
@@ -1313,7 +1382,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleStep1dContinue}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {t.navigation.continue}
                 <ArrowRight className="w-5 h-5" />
@@ -1325,7 +1394,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2aContinue}
-                  className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {t.navigation.continue}
                   <ArrowRight className="w-5 h-5" />
@@ -1333,7 +1402,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2aContinue}
-                  className="text-sm font-medium text-stone-500 hover:text-stone-800 py-1 text-center cursor-pointer"
+                  className="text-sm font-medium text-stone-500 hover:text-stone-800 active:scale-[0.97] touch-manipulation py-1 text-center cursor-pointer"
                 >
                   {t.navigation.skip}
                 </button>
@@ -1345,7 +1414,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2bContinue}
-                  className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {t.navigation.continue}
                   <ArrowRight className="w-5 h-5" />
@@ -1353,7 +1422,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2bContinue}
-                  className="text-sm font-medium text-stone-500 hover:text-stone-800 py-1 text-center cursor-pointer"
+                  className="text-sm font-medium text-stone-500 hover:text-stone-800 active:scale-[0.97] touch-manipulation py-1 text-center cursor-pointer"
                 >
                   {t.navigation.skip}
                 </button>
@@ -1365,7 +1434,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2cContinue}
-                  className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {t.navigation.continue}
                   <ArrowRight className="w-5 h-5" />
@@ -1373,7 +1442,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2cContinue}
-                  className="text-sm font-medium text-stone-500 hover:text-stone-800 py-1 text-center cursor-pointer"
+                  className="text-sm font-medium text-stone-500 hover:text-stone-800 active:scale-[0.97] touch-manipulation py-1 text-center cursor-pointer"
                 >
                   {t.navigation.skip}
                 </button>
@@ -1385,7 +1454,7 @@ export function OnboardingWizard({
                 type="button"
                 onClick={handleStep3aContinue}
                 disabled={loading}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : t.navigation.continue}
                 {!loading && <ArrowRight className="w-5 h-5" />}
@@ -1397,7 +1466,7 @@ export function OnboardingWizard({
                 type="button"
                 onClick={handleStep3bContinue}
                 disabled={loading}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Add Dish & Continue'}
                 {!loading && <ArrowRight className="w-5 h-5" />}
@@ -1414,7 +1483,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleStep4Continue}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {t.step4.review.continueToGoLive}
                 <ArrowRight className="w-5 h-5" />
@@ -1426,7 +1495,7 @@ export function OnboardingWizard({
                 type="button"
                 onClick={handlePublish}
                 disabled={loading}
-                className="w-full min-h-[56px] text-lg font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[56px] text-lg font-semibold bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : t.navigation.goLive}
                 {!loading && <Sparkles className="w-5 h-5" />}
@@ -1438,7 +1507,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleBack}
-                className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-stone-600 hover:text-stone-900 py-1 transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-stone-600 hover:text-stone-900 active:scale-[0.97] touch-manipulation py-1 transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 {t.navigation.back}

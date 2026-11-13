@@ -71,29 +71,52 @@ Any legacy integer `1..5` is decoded automatically:
 
 ---
 
-## 4. Screen Rules & Mobile Ergonomics
+## 4. Screen Rules, Mobile Ergonomics & Dashboard Patterns
 
-1. **One Question Per Screen**: Each screen presents exactly one question and one primary action button at the bottom of the screen.
-2. **Input Dimensions**:
+### Mobile Viewport & Layout Rules (Priority 360px & 390px, also 412px & 768px)
+1. **Single Centered Column**: Single centered column with 16px side padding (`px-4`). No horizontal scrolling allowed at any width (`document.documentElement.scrollWidth <= window.innerWidth`).
+2. **Dynamic Viewport Height (`100dvh`)**: All full-height mobile wrappers use `min-h-[100dvh]` (never `100vh`) to avoid vertical overflow and jumpiness when mobile browser address bars expand/collapse.
+3. **Sticky Safe-Area Bottom Bar**: The primary action button is pinned in a sticky bottom bar with backdrop blur (`bg-[#FAF8F5]/95 backdrop-blur-md sticky bottom-0 z-30`) and safe-area inset: `padding-bottom: max(16px, env(safe-area-inset-bottom))`.
+4. **Keyboard Visibility & Auto-Scroll**: Every input includes `onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}` so both the focused field and sticky Next button remain visible when the virtual keyboard opens.
+5. **Compact Mobile Progress**: Progress is displayed at the top via `"Step X of 5 · Question Y of N"` with a slim progress bar. The 5-circle desktop stepper is completely hidden on mobile.
+6. **Mobile Dashboard Bottom Navigation (`OwnerBottomNav.tsx`)**:
+   - Hidden during onboarding (`/owner/onboarding`).
+   - Post-onboarding mobile view uses a fixed bottom tab bar with 4 items:
+     1. **Home** (`/owner`)
+     2. **My Menu** (`/owner/menu`)
+     3. **QR Code** (`/owner/qr`)
+     4. **My Plan** (`/owner/billing`)
+   - Main content area includes bottom padding (`pb-24 md:pb-8`) so content is never obscured by the bottom tab bar.
+7. **Mobile Bottom Sheet Dialogs**:
+   - `CategoryEditorDialog` and `ItemEditorDialog` render as bottom sheets on mobile devices (`items-end sm:items-center`, `rounded-t-3xl sm:rounded-3xl`, max height `90dvh` with a pull handle bar) and center modals on desktop.
+8. **Touch-Accessible Reordering**:
+   - Menu items and categories provide dedicated touch-accessible Move Up / Move Down buttons (`min-h-[44px] min-w-[44px] active:scale-[0.97] touch-manipulation`) with proper `aria-label`s, removing reliance on drag-and-drop.
+
+### Input Specifications
+1. **iOS Safari Auto-Zoom Prevention**: All text inputs, textareas, and selects enforce `font-size: >= 16px` (`text-base` or `text-lg`). Pinch-zoom remains enabled without restricting `maximum-scale` in viewport metadata (`viewportFit: 'cover'`).
+2. **Semantic Attributes**:
+   - Phone: `type="tel"`, `autoComplete="tel"`, `inputMode="numeric"`, `enterKeyHint="next"`
+   - Email: `type="email"`, `autoComplete="email"`
+   - URLs / Links: `type="url"`
+   - Prices & Numbers: `inputMode="decimal"`
+   - Restaurant Name: `autoComplete="organization"`, `enterKeyHint="next"`
+   - City: `autoComplete="address-level2"`, `enterKeyHint="done"`
+3. **Dimensions & Touch Targets**:
    - Inputs are at least 56px tall (`min-h-[56px]`).
-   - Font sizes: 18px text (`text-lg`), 16px helper text (`text-base`).
-   - High-contrast borders and active focus rings.
-3. **Plain Language & Examples**:
-   - Plain words only; example hints appear directly beneath each input field (e.g. `Example: 9876543210`, `e.g., Royal Biryani House`).
-4. **Validation**:
-   - Friendly error messages appear beside/beneath the field.
-   - Advancing is strictly blocked on invalid data.
-5. **Autosave & Quiet Tick**:
-   - Saving occurs automatically upon completing each question.
-   - A quiet `"Saved"` tick with checkmark icon appears in the top header.
-   - Resuming returns to the exact sub-step previously saved.
-6. **Navigation Constraints**:
-   - Back link is always visible (`subStep !== '1a'`).
-   - Skip link is rendered only on optional questions (2a, 2b, 2c).
-   - Top navigation tabs are completely hidden during onboarding; header renders only the ZaaykaTech Owner logo, `"Need help? WhatsApp"` button, and `"Sign Out"`.
-7. **Accessibility & Design Standards**:
-   - Lucide icons only (no raw emojis).
-   - Respects user motion preferences (`motion-reduce:transition-none`).
+   - Tap cards and buttons are at least 48px tall (`min-h-[48px]`) with $\ge 8$px spacing.
+   - Pointer-down press feedback on all interactive elements (`active:scale-[0.97] touch-manipulation`).
+4. **Validation & Labels**:
+   - Labels sit above the field (never placeholder-only).
+   - Validation messages appear beneath the field in plain language without hiding inputs.
+
+### Media & Camera Uploads (`MediaUploader.tsx`)
+1. **Native Camera Capture**: Features a dedicated "Take Photo" button (`capture="environment"`, `accept="image/*"`) alongside "Choose from Gallery".
+2. **Client-Side Image Compression (`image-compression.ts`)**: Downscales photos in the browser before upload (max 1600px long edge, JPEG/WebP quality 0.85) reducing 5-10MB camera files to ~200-400KB to save owner mobile data.
+3. **Upload Feedback**: Real-time upload progress bar, green success checkmark, and a "Try Again" retry action on failure. Non-blocking upload allows owners to skip or continue if optional.
+
+### Performance & Bundle Size
+- QR Code generation (`QRCodeGenerator`) is dynamically imported with `next/dynamic` and a skeleton fallback.
+- Step 1 initial JS bundle is **126 kB** (well under the 150 kB budget).
 
 ---
 
@@ -118,15 +141,25 @@ All onboarding strings, question labels, helper hints, option cards, validation 
 ## 7. Verification & Test Suite
 
 All verification tests pass:
-1. `tests/substep-onboarding-test.ts`:
+1. **Playwright Mobile Responsive Test (`tests/mobile-onboarding.spec.ts`)**:
+   - **iPhone 14** (390x844, Safari mobile UA, `hasTouch: true`): Passed
+   - **Pixel 7** (412x915, Chrome mobile UA, `hasTouch: true`): Passed
+   - **Small mobile** (360x740, `hasTouch: true`): Passed
+   - **Tablet** (768x1024, `hasTouch: true`): Passed
+   - Asserts on every screen:
+     - No horizontal scroll (`document.documentElement.scrollWidth <= window.innerWidth`)
+     - Computed font sizes on all inputs $\ge 16$px (prevents iOS auto-zoom)
+     - Primary Next/Continue action button is within visible viewport (sticky bottom bar with safe-area padding)
+     - Step 1 completion (`1a` $\rightarrow$ `1b` $\rightarrow$ `1c` $\rightarrow$ `1d`) advances to Step 2 (`2a`).
+2. `tests/substep-onboarding-test.ts`:
    - Sub-step bidirectional mapping (`11..52` $\leftrightarrow$ `1a..5b`).
    - Exact sub-step resume verification (e.g., resume at 1c or 2b).
    - Strict Indian 10-digit mobile number validation (`/^[6-9]\d{9}$/`).
    - Step 3 menu requirement blocking (requires $\ge 1$ category and $\ge 1$ dish).
    - Step 2 optional skippability verification.
    - Translation dictionary completeness.
-2. `tests/group1-onboarding-test.ts`: Creation and branding preservation.
-3. `tests/group2-razorpay-test.ts`: Payment confirmation and webhook integrity.
-4. `tests/group3-lifecycle-test.ts`: Lifecycle states, trial protection, and DB error handling.
-5. `tests/group4-wizard-test.ts`: Live preview construction and fresh publish retention.
-6. Full Next.js production build (`npm run build`) and typecheck (`npm run typecheck`).
+3. `tests/group1-onboarding-test.ts`: Creation and branding preservation.
+4. `tests/group2-razorpay-test.ts`: Payment confirmation and webhook integrity.
+5. `tests/group3-lifecycle-test.ts`: Lifecycle states, trial protection, and DB error handling.
+6. `tests/group4-wizard-test.ts`: Live preview construction and fresh publish retention.
+7. Full Next.js production build (`npm run build`) and typecheck (`npm run typecheck`).

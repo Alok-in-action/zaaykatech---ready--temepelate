@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { getOwnerLifecycle } from '@/lib/owner-lifecycle';
 import { TrialCountdownBanner } from '@/components/owner/TrialCountdownBanner';
 import { OwnerHeader } from '@/components/owner/OwnerHeader';
+import { OwnerBottomNav } from '@/components/owner/OwnerBottomNav';
 
 export const metadata: Metadata = {
   title: 'Owner Portal | ZaaykaTech',
@@ -43,7 +44,7 @@ export default async function OwnerLayout({
     lifecycle.state === 'onboarding_in_progress';
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-stone-900 flex flex-col font-sans">
+    <div className="min-h-[100dvh] bg-[#FAF8F5] text-stone-900 flex flex-col font-sans">
       {/* 1. Real-time Trial & Subscription Countdown Banner (only for published restaurants) */}
       {activeRestaurant && activeRestaurant.status === 'published' && (
         <TrialCountdownBanner
@@ -62,9 +63,16 @@ export default async function OwnerLayout({
       />
 
       {/* 3. Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main
+        className={`flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-8 overflow-x-hidden ${
+          isOnboarding ? '' : 'pb-24 md:pb-8'
+        }`}
+      >
         {children}
       </main>
+
+      {/* 4. Mobile Bottom Tab Bar (Only after onboarding) */}
+      <OwnerBottomNav isOnboarding={isOnboarding} />
     </div>
   );
 }

@@ -129,7 +129,7 @@ export function CategoryManager({
               }`}
             >
               {/* Up/Down Reorder Buttons */}
-              <div className="flex flex-col -space-y-0.5">
+              <div className="flex flex-col gap-0.5">
                 <button
                   type="button"
                   disabled={idx === 0}
@@ -137,10 +137,11 @@ export function CategoryManager({
                     e.stopPropagation();
                     handleMove(idx, 'up');
                   }}
-                  className="p-0.5 text-stone-400 hover:text-stone-900 disabled:opacity-20 cursor-pointer"
+                  className="min-h-[24px] min-w-[24px] p-0.5 flex items-center justify-center text-stone-500 hover:text-stone-900 disabled:opacity-20 cursor-pointer rounded-sm hover:bg-stone-200/60 active:scale-[0.97] touch-manipulation"
                   title="Move Left"
+                  aria-label="Move category left"
                 >
-                  <ChevronUp className="w-3 h-3" />
+                  <ChevronUp className="w-3.5 h-3.5" />
                 </button>
                 <button
                   type="button"
@@ -149,10 +150,11 @@ export function CategoryManager({
                     e.stopPropagation();
                     handleMove(idx, 'down');
                   }}
-                  className="p-0.5 text-stone-400 hover:text-stone-900 disabled:opacity-20 cursor-pointer"
+                  className="min-h-[24px] min-w-[24px] p-0.5 flex items-center justify-center text-stone-500 hover:text-stone-900 disabled:opacity-20 cursor-pointer rounded-sm hover:bg-stone-200/60 active:scale-[0.97] touch-manipulation"
                   title="Move Right"
+                  aria-label="Move category right"
                 >
-                  <ChevronDown className="w-3 h-3" />
+                  <ChevronDown className="w-3.5 h-3.5" />
                 </button>
               </div>
 
