@@ -14,9 +14,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const tenantData = await resolveTenantBySlug(slug);
 
-  if (!tenantData) {
+  if (!tenantData || !tenantData.restaurant) {
     return {
       title: 'Restaurant Not Found | ZaaykaTech',
+      robots: { index: false, follow: false },
     };
   }
 
@@ -36,8 +37,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         : undefined,
     },
     robots: {
-      index: true,
-      follow: true,
+      index: tenantData.isLive,
+      follow: tenantData.isLive,
     },
   };
 }
@@ -46,12 +47,13 @@ export default async function PublicMenuPage({ params }: PageProps) {
   const { slug } = await params;
   const tenantData = await resolveTenantBySlug(slug);
 
+  // If restaurant doesn't exist, or is in draft/preview/suspended mode -> return 404
   if (!tenantData) {
     notFound();
   }
 
-  // If trial or subscription is expired and beyond grace period
-  if (!tenantData.isLive) {
+  // If restaurant trial or subscription has expired or is payment overdue -> show polite offline notice
+  if (tenantData.showExpiredNotice || !tenantData.isLive) {
     return <ExpiredNotice restaurantName={tenantData.restaurant.name} />;
   }
 
@@ -87,4 +89,3 @@ export default async function PublicMenuPage({ params }: PageProps) {
     </>
   );
 }
-

@@ -14,6 +14,7 @@ export const envSchema = z.object({
   CLOUDFLARE_R2_SECRET_ACCESS_KEY: z.string().optional(),
   CLOUDFLARE_R2_BUCKET_NAME: z.string().optional(),
   CLOUDFLARE_R2_PUBLIC_URL: z.string().url().optional(),
+  TURNSTILE_SECRET_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
 });
 

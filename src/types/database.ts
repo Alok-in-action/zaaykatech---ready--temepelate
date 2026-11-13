@@ -8,8 +8,18 @@ export type Json =
 
 export type UserRole = 'restaurant_owner' | 'agent' | 'super_admin';
 export type RestaurantStatus = 'draft' | 'preview' | 'published' | 'expired' | 'suspended';
-export type SiteStatus = 'trialing' | 'trial_ending' | 'grace_period' | 'expired' | 'active' | 'payment_overdue';
-export type SubscriptionStatus = 'trial' | 'active' | 'expired' | 'cancelled';
+export type SiteStatus =
+  | 'draft'
+  | 'preview'
+  | 'trialing'
+  | 'trial_ending'
+  | 'grace_period'
+  | 'expired'
+  | 'active'
+  | 'payment_overdue'
+  | 'suspended';
+
+export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'payment_pending';
 export type PaymentStatus = 'pending' | 'succeeded' | 'failed' | 'refunded';
 export type AnalyticsEventType =
   | 'qr_scan'
@@ -175,6 +185,7 @@ export interface SiteAnalytics {
   event_type: AnalyticsEventType;
   menu_item_id: string | null;
   session_id: string;
+  metadata: Record<string, Json>;
   created_at: string;
 }
 
@@ -186,4 +197,3 @@ export interface AuditLog {
   metadata: Record<string, Json>;
   created_at: string;
 }
-

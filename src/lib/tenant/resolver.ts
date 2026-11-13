@@ -1,22 +1,48 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { Restaurant, MenuCategory, MenuItem, SiteStatus } from '@/types/database';
 
+/**
+ * Evaluates the unified 9-state restaurant lifecycle:
+ * draft -> preview -> trialing -> trial_ending -> grace_period -> expired -> active -> payment_overdue -> suspended
+ */
 export function calculateSiteStatus(
-  restaurant: Pick<Restaurant, 'status' | 'trial_ends_at' | 'subscription_end_date'>
+  restaurant: Pick<Restaurant, 'status' | 'site_status' | 'trial_ends_at' | 'subscription_end_date'>
 ): SiteStatus {
-  if (restaurant.status === 'suspended') return 'expired';
-  if (restaurant.status === 'draft') return 'trialing';
+  // 1. Administrative or explicit suspension
+  if (restaurant.status === 'suspended' || restaurant.site_status === 'suspended') {
+    return 'suspended';
+  }
+
+  // 2. Draft state (restaurant setup in progress, not ready for visitors)
+  if (restaurant.status === 'draft' || restaurant.site_status === 'draft') {
+    return 'draft';
+  }
+
+  // 3. Preview state (owner testing layout prior to publish)
+  if (restaurant.status === 'preview' || restaurant.site_status === 'preview') {
+    return 'preview';
+  }
 
   const now = new Date();
 
-  // If there is an active paid subscription
+  // 4. Paid Subscription Lifecycle (Takes precedence if active subscription exists)
   if (restaurant.subscription_end_date) {
     const subEnd = new Date(restaurant.subscription_end_date);
     if (subEnd >= now) {
       return 'active';
     }
+
+    // Grace period for paid subscription renewal
+    const gracePeriodHours = Number(process.env.GRACE_PERIOD_HOURS || 24);
+    const subGraceEnds = new Date(subEnd.getTime() + gracePeriodHours * 60 * 60 * 1000);
+    if (now <= subGraceEnds) {
+      return 'payment_overdue';
+    }
+
+    return 'expired';
   }
 
+  // 5. 24-Hour Free Trial Lifecycle
   const trialEnds = new Date(restaurant.trial_ends_at);
   const gracePeriodHours = Number(process.env.GRACE_PERIOD_HOURS || 24);
   const gracePeriodEnds = new Date(trialEnds.getTime() + gracePeriodHours * 60 * 60 * 1000);
@@ -33,8 +59,21 @@ export function calculateSiteStatus(
   return 'expired';
 }
 
+/**
+ * Indicates whether the public QR menu is active and readable by diners.
+ * Allowed: trialing, trial_ending, grace_period, active
+ * Blocked: draft, preview, expired, payment_overdue, suspended
+ */
 export function isSitePubliclyLive(status: SiteStatus): boolean {
   return ['trialing', 'trial_ending', 'grace_period', 'active'].includes(status);
+}
+
+/**
+ * Indicates whether the restaurant should show the polite ExpiredNotice screen.
+ * Shows for: expired, payment_overdue
+ */
+export function shouldShowExpiredNotice(status: SiteStatus): boolean {
+  return ['expired', 'payment_overdue'].includes(status);
 }
 
 export interface ResolvedTenantData {
@@ -43,57 +82,85 @@ export interface ResolvedTenantData {
   items: MenuItem[];
   siteStatus: SiteStatus;
   isLive: boolean;
+  showExpiredNotice: boolean;
 }
 
+/**
+ * Resolves public restaurant data by slug.
+ * - In production: Uses secure server queries. Unknown or draft/preview/suspended returns null (404).
+ * - Never leaks demo data in production.
+ */
 export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantData | null> {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const hasRealSupabase = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')
+  );
+
   try {
-    const supabase = await createClient();
+    if (hasRealSupabase) {
+      // Use privileged server client to execute the secure stored function get_public_restaurant_menu
+      const serviceClient = createServiceClient();
+      const { data: menuData, error } = await serviceClient.rpc('get_public_restaurant_menu', {
+        p_slug: slug,
+      });
 
-    // 1. Fetch restaurant
-    const { data: restaurant, error: restError } = await supabase
-      .from('restaurants')
-      .select('*')
-      .eq('slug', slug)
-      .maybeSingle();
+      if (error || !menuData) {
+        // If query failed or returned null, in production return 404
+        if (isProduction) return null;
+        return getDemoFallbackTenant(slug);
+      }
 
-    if (restError || !restaurant) {
-      return getDemoFallbackTenant(slug);
+      // Check the returned status from the secure database function
+      if (menuData.status === 'not_found') {
+        // draft, preview, or suspended restaurants return 404
+        return null;
+      }
+
+      if (menuData.status === 'expired') {
+        return {
+          restaurant: {
+            name: menuData.restaurant_name || 'Restaurant',
+            site_status: menuData.site_status as SiteStatus,
+          } as unknown as Restaurant,
+          categories: [],
+          items: [],
+          siteStatus: menuData.site_status as SiteStatus,
+          isLive: false,
+          showExpiredNotice: true,
+        };
+      }
+
+      if (menuData.status === 'live' && menuData.restaurant) {
+        return {
+          restaurant: menuData.restaurant as Restaurant,
+          categories: (menuData.categories || []) as MenuCategory[],
+          items: (menuData.items || []) as MenuItem[],
+          siteStatus: menuData.site_status as SiteStatus,
+          isLive: true,
+          showExpiredNotice: false,
+        };
+      }
     }
-
-    const typedRestaurant = restaurant as unknown as Restaurant;
-    const computedStatus = calculateSiteStatus(typedRestaurant);
-    const isLive = isSitePubliclyLive(computedStatus);
-
-    // 2. Fetch categories
-    const { data: categories } = await supabase
-      .from('menu_categories')
-      .select('*')
-      .eq('restaurant_id', typedRestaurant.id)
-      .eq('is_active', true)
-      .order('position', { ascending: true });
-
-    // 3. Fetch items
-    const { data: items } = await supabase
-      .from('menu_items')
-      .select('*')
-      .eq('restaurant_id', typedRestaurant.id)
-      .eq('is_available', true)
-      .order('position', { ascending: true });
-
-    return {
-      restaurant: typedRestaurant,
-      categories: (categories || []) as unknown as MenuCategory[],
-      items: (items || []) as unknown as MenuItem[],
-      siteStatus: computedStatus,
-      isLive,
-    };
   } catch (err) {
-    console.warn(`Error resolving tenant for slug ${slug}:`, err);
-    return getDemoFallbackTenant(slug);
+    console.error(`Error resolving tenant for slug "${slug}":`, err);
+    if (isProduction) return null;
   }
+
+  // STRICT RULE: In production, NEVER return demo data under any circumstances!
+  if (isProduction) {
+    return null;
+  }
+
+  // Development/preview fallback ONLY for local testing when no live DB is connected
+  if (slug === 'demo') {
+    return getDemoFallbackTenant('demo');
+  }
+
+  return null;
 }
 
-// Demo fallback tenant for local preview and template demonstration
+// Development fallback tenant for local preview and template demonstration ONLY
 export function getDemoFallbackTenant(slug: string): ResolvedTenantData {
   const trialEnd = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const demoRestaurant: Restaurant = {
@@ -278,6 +345,6 @@ export function getDemoFallbackTenant(slug: string): ResolvedTenantData {
     items: demoItems,
     siteStatus: 'trialing',
     isLive: true,
+    showExpiredNotice: false,
   };
 }
-
