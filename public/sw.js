@@ -1,18 +1,22 @@
-const CACHE_NAME = 'cafe950-cache-v1';
+const CACHE_VERSION = 'zaaykatech-v2';
+const STATIC_CACHE_NAME = `static-${CACHE_VERSION}`;
 
-const STATIC_ASSETS_PREFIXES = [
-  '/_next/static/',
-  '/img/',
-  '/fonts/'
-];
+// Static media and branding assets (safe for cache-first)
+const IMMUTABLE_MEDIA_PREFIXES = ['/img/', '/brand/', '/fonts/'];
 
-// Helper to determine if a request is for a static asset
-function isStaticAsset(url) {
-  return STATIC_ASSETS_PREFIXES.some(prefix => url.pathname.startsWith(prefix)) || 
-         url.pathname.match(/\.(png|jpg|jpeg|svg|woff2|css|js)$/);
+function isNextStaticAsset(url) {
+  return url.pathname.startsWith('/_next/static/');
+}
+
+function isImmutableMediaAsset(url) {
+  return (
+    IMMUTABLE_MEDIA_PREFIXES.some((prefix) => url.pathname.startsWith(prefix)) ||
+    url.pathname.match(/\.(png|jpg|jpeg|webp|avif|svg|woff2|ico)$/i)
+  );
 }
 
 self.addEventListener('install', (event) => {
+  // Activate immediately without waiting for existing tabs to close
   self.skipWaiting();
 });
 
@@ -21,7 +25,8 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== STATIC_CACHE_NAME) {
+            console.log('[SW] Removing stale cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -34,12 +39,51 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Ignore non-GET requests and cross-origin requests (unless they are static assets we want to cache)
+  // Ignore non-GET requests and non-http(s) requests
   if (event.request.method !== 'GET') return;
   if (!url.protocol.startsWith('http')) return;
 
-  // 1. Cache First for static assets
-  if (isStaticAsset(url)) {
+  // Never intercept API routes, Next server actions, auth, or Supabase
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/auth/') ||
+    url.hostname.includes('supabase')
+  ) {
+    return;
+  }
+
+  // 1. Next.js build chunks (/_next/static/*): Strict Network-First
+  // Never serve stale build chunks that could conflict with new client manifests.
+  if (isNextStaticAsset(url)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(STATIC_CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // Fallback to cache ONLY if completely offline
+          return caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            return new Response('Network offline and chunk not in cache', {
+              status: 503,
+              statusText: 'Service Unavailable',
+            });
+          });
+        })
+    );
+    return;
+  }
+
+  // 2. Cache-First for immutable media, icons, and fonts
+  if (isImmutableMediaAsset(url)) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
@@ -48,7 +92,7 @@ self.addEventListener('fetch', (event) => {
         return fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
             const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
+            caches.open(STATIC_CACHE_NAME).then((cache) => {
               cache.put(event.request, responseToCache);
             });
           }
@@ -59,20 +103,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Network First for everything else (HTML, menu data, etc.)
+  // 3. Network-First for HTML documents and public menu pages
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
+          caches.open(STATIC_CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
           });
         }
         return networkResponse;
       })
       .catch(() => {
-        // Fallback to cache if network fails
         return caches.match(event.request);
       })
   );
