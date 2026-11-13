@@ -16,7 +16,7 @@ export function CategoryNav({
 }: CategoryNavProps) {
   return (
     <nav
-      className="sticky top-0 z-30 bg-[#FAF8F5]/95 backdrop-blur-md py-3 px-4 border-b border-stone-200/60 shadow-sm"
+      className="sticky top-0 z-30 apple-glass py-3 px-4 border-b border-stone-200/60 shadow-xs"
       aria-label="Menu categories"
     >
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
@@ -26,10 +26,10 @@ export function CategoryNav({
             <button
               key={category.id}
               onClick={() => onSelectCategory(category.id)}
-              className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 flex-shrink-0 ${
+              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 apple-press shrink-0 ${
                 isActive
-                  ? 'bg-[#8B4A27] text-white shadow-sm font-semibold'
-                  : 'bg-white text-stone-600 border border-stone-200/80 hover:bg-stone-50'
+                  ? 'bg-[#8B4A27] text-white shadow-xs'
+                  : 'bg-white/80 text-stone-700 border border-stone-200/80 hover:bg-white'
               }`}
             >
               {category.name}
@@ -40,4 +40,3 @@ export function CategoryNav({
     </nav>
   );
 }
-

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createMenuItem, updateMenuItem } from '@/actions/item';
 import { MediaUploader } from '@/components/owner/MediaUploader';
 import { MenuItem, MenuCategory } from '@/types/database';
+import { X, Loader2, Plus, Trash2, Sparkles, Star, CloudRain } from 'lucide-react';
 
 interface ItemEditorDialogProps {
   restaurantId: string;
@@ -112,7 +113,7 @@ export function ItemEditorDialog({
 
   const handleRemoveVariant = (index: number) => {
     if (variants.length <= 1) return;
-    setVariants(variants.filter((_, idx) => idx !== index));
+    setVariants(variants.filter((_, i) => i !== index));
   };
 
   const handleVariantChange = (index: number, field: 'name' | 'rupees', val: string) => {
@@ -125,81 +126,88 @@ export function ItemEditorDialog({
     e.preventDefault();
     setError(null);
 
-    if (!name.trim() || name.trim().length < 2) {
-      setError('Item name must be at least 2 characters.');
+    if (!name.trim()) {
+      setError('Dish name is required.');
       return;
     }
-
     if (!categoryId) {
       setError('Please select a category for this dish.');
       return;
     }
 
-    let pricePaise: number | null = null;
-    let variantPrices: Record<string, number> | null = null;
+    let price_paise: number | null = null;
+    let variant_prices: Record<string, number> | null = null;
 
     if (pricingMode === 'single') {
-      const parsedRupees = parseFloat(singlePriceRupees);
-      if (isNaN(parsedRupees) || parsedRupees < 0) {
-        setError('Please enter a valid non-negative price in Rupees.');
+      const p = parseFloat(singlePriceRupees);
+      if (isNaN(p) || p < 0) {
+        setError('Please enter a valid price in rupees (e.g. 250).');
         return;
       }
-      pricePaise = Math.round(parsedRupees * 100);
-      variantPrices = null;
+      price_paise = Math.round(p * 100);
+      variant_prices = null;
     } else {
-      variantPrices = {};
+      const vMap: Record<string, number> = {};
       for (const v of variants) {
         if (!v.name.trim()) {
-          setError('Variant name cannot be empty.');
+          setError('Variant names cannot be empty.');
           return;
         }
-        const vRupees = parseFloat(v.rupees);
-        if (isNaN(vRupees) || vRupees <= 0) {
-          setError(`Please enter a valid positive price for variant "${v.name}".`);
+        const rup = parseFloat(v.rupees);
+        if (isNaN(rup) || rup < 0) {
+          setError(`Invalid price for variant "${v.name}".`);
           return;
         }
-        variantPrices[v.name.trim().toLowerCase()] = Math.round(vRupees * 100);
+        vMap[v.name.trim()] = Math.round(rup * 100);
       }
-      pricePaise = null;
+      if (Object.keys(vMap).length === 0) {
+        setError('Please add at least one variant price.');
+        return;
+      }
+      price_paise = null;
+      variant_prices = vMap;
     }
 
     const tags = tagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
-
+      ? tagsInput
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
     const allergens = allergensInput
-      .split(',')
-      .map((a) => a.trim())
-      .filter(Boolean);
+      ? allergensInput
+          .split(',')
+          .map((a) => a.trim())
+          .filter(Boolean)
+      : [];
 
     try {
       setLoading(true);
 
       const payload = {
-        name: name.trim(),
         categoryId,
-        description: description.trim() || null,
         pricingMode,
-        price_paise: pricePaise,
-        variant_prices: variantPrices,
+        name: name.trim(),
+        description: description.trim() || null,
+        price_paise,
+        variant_prices,
         image_url: imageUrl || null,
-        tags,
-        allergens,
         is_veg: isVeg,
         is_available: isAvailable,
         is_signature: isSignature,
         is_most_ordered: isMostOrdered,
         is_monsoon: isMonsoon,
         custom_tag: customTag.trim() || null,
+        tags,
+        allergens,
       };
 
       if (isEditing && item) {
         const res = await updateMenuItem(item.id, payload);
-        if (!res.success) throw new Error(res.error || 'Failed to update item');
+        if (!res.success) throw new Error(res.error || 'Failed to update dish');
       } else {
         const res = await createMenuItem(restaurantId, payload);
-        if (!res.success) throw new Error(res.error || 'Failed to create item');
+        if (!res.success) throw new Error(res.error || 'Failed to create dish');
       }
 
       onSuccess();
@@ -212,76 +220,89 @@ export function ItemEditorDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border border-stone-200 my-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-serif text-lg font-bold text-stone-900">
-            {isEditing ? 'Edit Menu Dish' : 'Add New Menu Dish'}
-          </h3>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-600 text-sm font-bold p-1">
-            ✕
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-md animate-in fade-in overflow-y-auto">
+      <div className="apple-card rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative my-auto max-h-[92vh] overflow-y-auto no-scrollbar">
+        <div className="flex items-center justify-between mb-5 sticky top-0 bg-white/95 backdrop-blur-md pb-2 z-10 border-b border-stone-100">
+          <div>
+            <h3 className="font-serif text-lg font-bold text-stone-900 tracking-tight">
+              {isEditing ? 'Edit Dish Details' : 'Add New Dish'}
+            </h3>
+            <p className="text-[11px] text-stone-400">Configure dish information, pricing, and photography.</p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-stone-400 hover:text-stone-700 p-1.5 rounded-xl hover:bg-stone-100 transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
+          <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* 1. Name & Category */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">Dish Name *</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Spanish Latte, Truffle Pizza"
-                className="w-full text-xs px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:bg-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">Category *</label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full text-xs px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl focus:bg-white"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* 1. Category Assignment */}
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+              Category *
+            </label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full text-xs px-3.5 py-2.5 bg-stone-50/70 border border-stone-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#8B4A27]/20 transition-all cursor-pointer"
+            >
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* 2. Description */}
+          {/* 2. Dish Name & Description */}
           <div>
-            <label className="block text-xs font-semibold text-stone-700 mb-1">Description</label>
+            <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+              Dish Name *
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Truffle Sourdough Toast"
+              className="w-full text-xs sm:text-sm px-4 py-2.5 bg-stone-50/70 border border-stone-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#8B4A27]/20 transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+              Description (Optional)
+            </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Appetizing description, ingredients, or preparation method..."
+              placeholder="Appetizing description of ingredients, flavor notes, and preparation"
               rows={2}
-              className="w-full text-xs px-3.5 py-2 bg-stone-50 border border-stone-300 rounded-xl focus:bg-white"
+              className="w-full text-xs px-4 py-2.5 bg-stone-50/70 border border-stone-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#8B4A27]/20 transition-all resize-none"
             />
           </div>
 
           {/* 3. Veg / Non-Veg Indicator */}
           <div>
-            <label className="block text-xs font-semibold text-stone-700 mb-1.5">Dietary Indicator</label>
-            <div className="flex gap-2">
+            <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+              Dietary Type
+            </label>
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => setIsVeg(true)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                className={`py-2 px-3 rounded-2xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all apple-press cursor-pointer ${
                   isVeg
-                    ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
-                    : 'border-stone-200 bg-white text-stone-600'
+                    ? 'border-emerald-600 bg-emerald-50 text-emerald-800 shadow-2xs'
+                    : 'border-stone-200 bg-stone-50 text-stone-600'
                 }`}
               >
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
@@ -290,10 +311,10 @@ export function ItemEditorDialog({
               <button
                 type="button"
                 onClick={() => setIsVeg(false)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl border text-xs font-semibold transition-all ${
+                className={`py-2 px-3 rounded-2xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all apple-press cursor-pointer ${
                   !isVeg
-                    ? 'border-rose-600 bg-rose-50 text-rose-800'
-                    : 'border-stone-200 bg-white text-stone-600'
+                    ? 'border-rose-600 bg-rose-50 text-rose-800 shadow-2xs'
+                    : 'border-stone-200 bg-stone-50 text-stone-600'
                 }`}
               >
                 <span className="w-2.5 h-2.5 rounded-full bg-rose-600" />
@@ -302,16 +323,16 @@ export function ItemEditorDialog({
             </div>
           </div>
 
-          {/* 4. Pricing Mode: Single Price OR Variants (Correction 2 & 3) */}
-          <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-3">
+          {/* 4. Pricing Mode: Single Price OR Variants */}
+          <div className="p-4 bg-stone-50/70 rounded-2xl border border-stone-200/80 space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-stone-800">Pricing Model</label>
-              <div className="flex bg-stone-200/70 p-0.5 rounded-lg text-xs">
+              <div className="flex bg-stone-200/60 p-0.5 rounded-xl text-xs">
                 <button
                   type="button"
                   onClick={() => setPricingMode('single')}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
-                    pricingMode === 'single' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-600'
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    pricingMode === 'single' ? 'bg-white shadow-2xs text-stone-900' : 'text-stone-500'
                   }`}
                 >
                   Single Price
@@ -319,8 +340,8 @@ export function ItemEditorDialog({
                 <button
                   type="button"
                   onClick={() => setPricingMode('variants')}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
-                    pricingMode === 'variants' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-600'
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    pricingMode === 'variants' ? 'bg-white shadow-2xs text-stone-900' : 'text-stone-500'
                   }`}
                 >
                   Variants
@@ -342,7 +363,7 @@ export function ItemEditorDialog({
                     value={singlePriceRupees}
                     onChange={(e) => setSinglePriceRupees(e.target.value)}
                     placeholder="250"
-                    className="w-full text-xs pl-7 pr-3 py-2 bg-white border border-stone-300 rounded-xl font-mono"
+                    className="w-full text-xs pl-7 pr-3 py-2 bg-white border border-stone-200 rounded-xl font-mono focus:ring-2 focus:ring-[#8B4A27]/20 focus:outline-none"
                   />
                 </div>
               </div>
@@ -353,9 +374,10 @@ export function ItemEditorDialog({
                   <button
                     type="button"
                     onClick={handleAddVariant}
-                    className="text-[11px] text-[#8B4A27] font-semibold hover:underline"
+                    className="text-[11px] text-[#8B4A27] font-semibold hover:underline inline-flex items-center gap-1 cursor-pointer"
                   >
-                    + Add Variant
+                    <Plus className="w-3 h-3" />
+                    <span>Add Variant</span>
                   </button>
                 </div>
                 {variants.map((v, idx) => (
@@ -364,27 +386,28 @@ export function ItemEditorDialog({
                       type="text"
                       value={v.name}
                       onChange={(e) => handleVariantChange(idx, 'name', e.target.value)}
-                      placeholder="e.g. Regular / NY"
-                      className="flex-1 text-xs px-3 py-1.5 bg-white border border-stone-300 rounded-xl"
+                      placeholder="e.g. Regular / Large"
+                      className="flex-1 text-xs px-3 py-2 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#8B4A27]/20 focus:outline-none"
                     />
                     <div className="relative w-28">
-                      <span className="absolute left-2.5 top-1.5 text-xs text-stone-400 font-bold">₹</span>
+                      <span className="absolute left-2.5 top-2 text-xs text-stone-400 font-bold">₹</span>
                       <input
                         type="number"
                         min="1"
                         value={v.rupees}
                         onChange={(e) => handleVariantChange(idx, 'rupees', e.target.value)}
                         placeholder="180"
-                        className="w-full text-xs pl-6 pr-2 py-1.5 bg-white border border-stone-300 rounded-xl font-mono"
+                        className="w-full text-xs pl-6 pr-2 py-2 bg-white border border-stone-200 rounded-xl font-mono focus:ring-2 focus:ring-[#8B4A27]/20 focus:outline-none"
                       />
                     </div>
                     {variants.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveVariant(idx)}
-                        className="text-stone-400 hover:text-rose-600 text-sm px-1"
+                        className="text-stone-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Remove Variant"
                       >
-                        ✕
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
@@ -393,7 +416,7 @@ export function ItemEditorDialog({
             )}
           </div>
 
-          {/* 5. Optional Dish Image (Cloudflare R2) */}
+          {/* 5. Dish Photo (Supabase Storage) */}
           <div>
             <MediaUploader
               restaurantId={restaurantId}
@@ -409,46 +432,52 @@ export function ItemEditorDialog({
           <div className="pt-2 border-t border-stone-100">
             <label className="block text-xs font-semibold text-stone-700 mb-2">Highlight Badges</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <label className="flex items-center gap-2 p-2 bg-stone-50 rounded-xl border border-stone-200 cursor-pointer text-xs">
+              <label className="flex items-center gap-2 p-2.5 bg-stone-50/70 rounded-xl border border-stone-200/80 cursor-pointer text-xs hover:bg-stone-100/60 transition-colors">
                 <input
                   type="checkbox"
                   checked={isSignature}
                   onChange={(e) => setIsSignature(e.target.checked)}
-                  className="rounded text-[#8B4A27]"
+                  className="rounded text-[#8B4A27] focus:ring-[#8B4A27]"
                 />
-                <span>✨ Signature</span>
+                <span className="flex items-center gap-1 font-medium">
+                  <Sparkles className="w-3 h-3 text-amber-600" /> Signature
+                </span>
               </label>
-              <label className="flex items-center gap-2 p-2 bg-stone-50 rounded-xl border border-stone-200 cursor-pointer text-xs">
+              <label className="flex items-center gap-2 p-2.5 bg-stone-50/70 rounded-xl border border-stone-200/80 cursor-pointer text-xs hover:bg-stone-100/60 transition-colors">
                 <input
                   type="checkbox"
                   checked={isMostOrdered}
                   onChange={(e) => setIsMostOrdered(e.target.checked)}
-                  className="rounded text-[#8B4A27]"
+                  className="rounded text-[#8B4A27] focus:ring-[#8B4A27]"
                 />
-                <span>★ Bestseller</span>
+                <span className="flex items-center gap-1 font-medium">
+                  <Star className="w-3 h-3 text-[#8B4A27]" /> Bestseller
+                </span>
               </label>
-              <label className="flex items-center gap-2 p-2 bg-stone-50 rounded-xl border border-stone-200 cursor-pointer text-xs">
+              <label className="flex items-center gap-2 p-2.5 bg-stone-50/70 rounded-xl border border-stone-200/80 cursor-pointer text-xs hover:bg-stone-100/60 transition-colors">
                 <input
                   type="checkbox"
                   checked={isMonsoon}
                   onChange={(e) => setIsMonsoon(e.target.checked)}
-                  className="rounded text-[#8B4A27]"
+                  className="rounded text-[#8B4A27] focus:ring-[#8B4A27]"
                 />
-                <span>🌧️ Monsoon</span>
+                <span className="flex items-center gap-1 font-medium">
+                  <CloudRain className="w-3 h-3 text-sky-600" /> Monsoon
+                </span>
               </label>
             </div>
           </div>
 
           {/* 7. Custom Tag, Tags & Allergens */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">Custom Tag</label>
               <input
                 type="text"
                 value={customTag}
                 onChange={(e) => setCustomTag(e.target.value)}
-                placeholder="e.g. Barista's Choice, Limited Edition"
-                className="w-full text-xs px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl"
+                placeholder="e.g. Barista's Choice"
+                className="w-full text-xs px-3 py-2 bg-stone-50/70 border border-stone-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#8B4A27]/20 focus:outline-none transition-all"
               />
             </div>
             <div>
@@ -457,14 +486,14 @@ export function ItemEditorDialog({
                 type="text"
                 value={tagsInput}
                 onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="Spicy, Gluten-Free, Hot"
-                className="w-full text-xs px-3 py-2 bg-stone-50 border border-stone-300 rounded-xl"
+                placeholder="Spicy, Gluten-Free"
+                className="w-full text-xs px-3 py-2 bg-stone-50/70 border border-stone-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#8B4A27]/20 focus:outline-none transition-all"
               />
             </div>
           </div>
 
           {/* 8. Availability Switch */}
-          <div className="flex items-center justify-between p-3 bg-stone-50 rounded-2xl border border-stone-200">
+          <div className="flex items-center justify-between p-3.5 bg-stone-50/70 rounded-2xl border border-stone-200/80">
             <div>
               <span className="text-xs font-semibold text-stone-800 block">Dish In Stock</span>
               <span className="text-[11px] text-stone-400">Turn off if item is sold out for the day</span>
@@ -472,33 +501,34 @@ export function ItemEditorDialog({
             <button
               type="button"
               onClick={() => setIsAvailable(!isAvailable)}
-              className={`w-11 h-6 rounded-full transition-colors relative p-0.5 ${
-                isAvailable ? 'bg-emerald-600' : 'bg-stone-300'
+              className={`w-10 h-6 rounded-full transition-colors duration-200 relative p-0.5 cursor-pointer ${
+                isAvailable ? 'bg-emerald-500' : 'bg-stone-300'
               }`}
             >
               <div
-                className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
-                  isAvailable ? 'translate-x-5' : 'translate-x-0'
+                className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform duration-200 ${
+                  isAvailable ? 'translate-x-4' : 'translate-x-0'
                 }`}
               />
             </button>
           </div>
 
-          <div className="pt-3 flex justify-end gap-2">
+          <div className="pt-3 flex justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-medium rounded-xl transition-all"
+              className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-xl apple-press transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-bold rounded-xl shadow-sm transition-all disabled:opacity-60"
+              className="px-5 py-2 bg-[#8B4A27] hover:bg-[#743c1e] text-white text-xs font-bold rounded-xl shadow-xs transition-all apple-press disabled:opacity-60 inline-flex items-center gap-1.5 cursor-pointer"
             >
-              {loading ? 'Saving...' : isEditing ? 'Update Dish' : 'Add Dish'}
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{loading ? 'Saving...' : isEditing ? 'Update Dish' : 'Add Dish'}</span>
             </button>
           </div>
         </form>

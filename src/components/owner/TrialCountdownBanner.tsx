@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { SiteStatus } from '@/types/database';
 import { RazorpayCheckoutButton } from '@/components/owner/billing/RazorpayCheckoutButton';
+import { Sparkles, AlertTriangle, Lock, Clock } from 'lucide-react';
 
 interface TrialCountdownBannerProps {
   trialEndsAt: string;
@@ -41,7 +42,7 @@ export function TrialCountdownBanner({
     }
 
     updateCountdown();
-    const interval = setInterval(updateCountdown, 60000); // Update every minute
+    const interval = setInterval(updateCountdown, 60000);
     return () => clearInterval(interval);
   }, [trialEndsAt]);
 
@@ -55,32 +56,32 @@ export function TrialCountdownBanner({
     });
 
     return (
-      <div className="bg-emerald-950 text-emerald-200 border-b border-emerald-800/40 px-4 py-2 text-xs">
+      <aside aria-label="Subscription Status" className="bg-emerald-950/95 text-emerald-200 border-b border-emerald-800/40 px-4 py-2 text-xs backdrop-blur-md">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-emerald-400">✨</span>
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span>
-              <strong>Yearly Pro Plan Active:</strong> Your public QR menu is live. Subscription valid until <strong>{formattedDate}</strong>.
+              <strong>Annual Pro Plan Active:</strong> Your public QR menu is live. Valid until <strong>{formattedDate}</strong>.
             </span>
           </div>
           <Link
             href="/owner/billing"
-            className="text-emerald-300 hover:text-white underline text-[11px] font-medium"
+            className="text-emerald-300 hover:text-white underline text-[11px] font-medium transition-colors"
           >
             Manage Billing &amp; Invoices →
           </Link>
         </div>
-      </div>
+      </aside>
     );
   }
 
   // Grace Period State
   if (siteStatus === 'grace_period') {
     return (
-      <div className="bg-orange-500 text-white px-4 py-2.5 text-xs font-semibold shadow-sm">
+      <aside aria-label="Grace Period Alert" className="bg-gradient-to-r from-orange-600 to-amber-600 text-white px-4 py-2.5 text-xs font-semibold shadow-xs">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-base">⚠️</span>
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-200" />
             <span>
               <strong>Trial Expired — 24-Hour Grace Period Active.</strong> Your public menu is still live, but will go offline soon.
             </span>
@@ -90,7 +91,7 @@ export function TrialCountdownBanner({
               restaurantId={restaurantId}
               label="Upgrade Now (₹2,999/yr)"
               variant="secondary"
-              className="bg-white text-orange-950 hover:bg-stone-100 h-7 text-[11px] font-bold px-3 rounded-full shadow-sm"
+              className="bg-white text-orange-950 hover:bg-stone-100 h-7 text-[11px] font-bold px-3.5 rounded-full shadow-2xs"
             />
             <Link
               href="/owner/billing"
@@ -100,19 +101,19 @@ export function TrialCountdownBanner({
             </Link>
           </div>
         </div>
-      </div>
+      </aside>
     );
   }
 
   // Expired / Payment Overdue State
   if (siteStatus === 'expired' || siteStatus === 'payment_overdue') {
     return (
-      <div className="bg-stone-900 text-rose-400 px-4 py-2.5 text-xs font-semibold shadow-sm">
+      <aside aria-label="Expired Notification" className="bg-stone-900 text-stone-200 px-4 py-2.5 text-xs font-semibold border-b border-rose-900/50">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-base">🔒</span>
+            <Lock className="w-4 h-4 text-rose-400 shrink-0" />
             <span>
-              <strong>Public QR Menu Offline.</strong> All your restaurant data, QR code, and dishes are saved safely.
+              <strong>Public QR Menu Offline.</strong> All your restaurant data, dishes, and QR codes are preserved safely.
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -120,7 +121,7 @@ export function TrialCountdownBanner({
               restaurantId={restaurantId}
               label="Reactivate Menu (₹2,999/yr)"
               variant="default"
-              className="bg-rose-600 hover:bg-rose-500 text-white h-7 text-[11px] font-bold px-3 rounded-full shadow-sm"
+              className="bg-rose-600 hover:bg-rose-500 text-white h-7 text-[11px] font-bold px-3.5 rounded-full shadow-2xs"
             />
             <Link
               href="/owner/billing"
@@ -130,24 +131,24 @@ export function TrialCountdownBanner({
             </Link>
           </div>
         </div>
-      </div>
+      </aside>
     );
   }
 
   // Active Trial State
   return (
-    <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-orange-500 text-stone-950 px-4 py-2 text-xs font-medium shadow-sm">
+    <aside aria-label="Trial Countdown" className="bg-amber-500/10 border-b border-amber-500/20 text-stone-900 px-4 py-2 text-xs font-medium backdrop-blur-md">
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="animate-pulse text-sm">⏳</span>
+          <Clock className="w-3.5 h-3.5 text-[#8B4A27] animate-pulse shrink-0" />
           <span>
-            <strong>24-Hour Free Trial:</strong>{' '}
+            <strong className="text-[#8B4A27]">24-Hour Free Trial:</strong>{' '}
             {timeLeft.isExpired
               ? 'Trial expiring shortly'
               : `${timeLeft.hours}h ${timeLeft.minutes}m remaining`}
           </span>
-          <span className="hidden md:inline text-stone-900 text-[11px]">
-            — Full features unlocked. Public menu is live.
+          <span className="hidden md:inline text-stone-500 text-[11px]">
+            — Full features unlocked. Public QR menu is live.
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -155,16 +156,16 @@ export function TrialCountdownBanner({
             restaurantId={restaurantId}
             label="Keep Live (₹2,999/yr)"
             variant="default"
-            className="bg-stone-950 hover:bg-stone-800 text-white h-7 text-[11px] font-bold px-3 rounded-full shadow-sm"
+            className="bg-[#8B4A27] hover:bg-[#743c1e] text-white h-7 text-[11px] font-bold px-3.5 rounded-full shadow-2xs"
           />
           <Link
             href="/owner/billing"
-            className="text-stone-900 hover:underline text-[11px] font-medium hidden sm:inline"
+            className="text-stone-600 hover:text-stone-900 underline text-[11px] font-medium hidden sm:inline"
           >
-            Plan Details
+            Pricing Details
           </Link>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }

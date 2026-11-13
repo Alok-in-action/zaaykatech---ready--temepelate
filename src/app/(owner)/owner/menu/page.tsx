@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { Sparkles, ExternalLink, SlidersHorizontal } from 'lucide-react';
 import { CategoryManager } from '@/components/owner/menu/CategoryManager';
 import { ItemManager } from '@/components/owner/menu/ItemManager';
 import { CategoryEditorDialog } from '@/components/owner/menu/CategoryEditorDialog';
@@ -101,13 +102,14 @@ export default function MenuManagementPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/owner/menu/ai-import"
-            className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+            className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-200/80 text-xs font-semibold rounded-2xl shadow-xs transition-all apple-press flex items-center gap-1.5"
           >
-            <span>✨ Import with AI</span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+            <span>Import with AI</span>
           </Link>
           <Link
             href="/owner/settings"
-            className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-xl transition-all"
+            className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-2xl transition-all apple-press"
           >
             Publish Status
           </Link>
@@ -115,9 +117,10 @@ export default function MenuManagementPage() {
             href={`/r/${restaurantSlug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
+            className="px-4 py-2 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-2xl shadow-xs transition-all apple-press flex items-center gap-1.5"
           >
-            Live Preview ↗
+            <span>Live Preview</span>
+            <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
       </div>

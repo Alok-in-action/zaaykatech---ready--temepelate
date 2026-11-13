@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { QrCode, Download, FileCode, Copy, Check, ExternalLink } from 'lucide-react';
 
 interface QRCodeGeneratorProps {
   restaurantName: string;
@@ -60,7 +61,7 @@ export function QRCodeGenerator({
   };
 
   const downloadPNG = async () => {
-    // Generate high-res 1024x1024 branded printable PNG
+    // Generate high-res 1024x1280 branded printable PNG
     const printCanvas = document.createElement('canvas');
     printCanvas.width = 1024;
     printCanvas.height = 1280;
@@ -138,18 +139,21 @@ export function QRCodeGenerator({
   };
 
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/80 shadow-sm max-w-2xl mx-auto space-y-6">
+    <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/80 shadow-xs max-w-2xl mx-auto space-y-6">
       <div className="text-center">
-        <h2 className="font-serif text-2xl font-bold text-stone-900">
+        <div className="inline-flex items-center justify-center p-2 rounded-2xl bg-[#8B4A27]/10 text-[#8B4A27] mb-2">
+          <QrCode className="w-6 h-6" />
+        </div>
+        <h2 className="font-serif text-2xl font-bold tracking-tight text-stone-900">
           Restaurant QR Code Center
         </h2>
         <p className="text-xs text-stone-500 mt-1 max-w-md mx-auto">
-          Display this QR code on dining tables, counter standees, or takeout flyers for instant menu access.
+          Display this QR code on dining tables, counter standees, or takeout packaging for instant instant contact-free menu viewing.
         </p>
       </div>
 
       {/* QR Code Standee Preview Card */}
-      <div className="bg-[#FAF8F5] border border-stone-200 rounded-3xl p-6 sm:p-8 text-center max-w-sm mx-auto shadow-inner flex flex-col items-center">
+      <div className="bg-[#FAF8F5] border border-stone-200/80 rounded-3xl p-6 sm:p-8 text-center max-w-sm mx-auto shadow-inner flex flex-col items-center">
         <div
           className="w-full py-3 px-4 rounded-2xl text-white font-serif font-bold text-lg mb-4 shadow-sm"
           style={{ backgroundColor: primaryColor }}
@@ -157,52 +161,73 @@ export function QRCodeGenerator({
           {restaurantName}
         </div>
 
-        <p className="text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
+        <p className="text-xs font-bold uppercase tracking-wider text-stone-800 mb-1">
           Scan for Digital Menu
         </p>
-        <p className="text-[11px] text-stone-400 mb-4">No app download required</p>
+        <p className="text-[11px] text-stone-400 mb-4">Instant load • No app download required</p>
 
         {/* Canvas Render */}
-        <div className="bg-white p-3 rounded-2xl shadow-sm border border-stone-200/80 mb-4">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-stone-200/80 mb-4">
           <canvas ref={canvasRef} className="rounded-xl w-56 h-56" />
         </div>
 
-        <span className="text-[10px] text-stone-400">
-          Powered by <strong className="text-stone-600">ZaaykaTech</strong>
+        <span className="text-[10px] text-stone-400 font-medium">
+          Powered by <strong className="text-stone-700">ZaaykaTech</strong>
         </span>
       </div>
 
       {/* Public Link Box */}
       <div className="bg-stone-50 border border-stone-200/80 rounded-2xl p-3 flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <span className="text-[10px] uppercase font-bold text-stone-400 block">
-            Public Menu Link
+        <div className="min-w-0 flex-1 pl-1">
+          <span className="text-[10px] uppercase font-bold text-stone-400 block tracking-wider">
+            Public Live Link
           </span>
           <p className="text-xs font-mono text-stone-800 truncate">{publicUrl}</p>
         </div>
-        <button
-          onClick={copyToClipboard}
-          className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl transition-all flex-shrink-0"
-        >
-          {copied ? '✓ Copied' : 'Copy Link'}
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={copyToClipboard}
+            className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl transition-all apple-press flex items-center gap-1.5 shadow-xs"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+          <a
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 border border-stone-300 hover:bg-stone-100 text-stone-700 rounded-xl transition-all apple-press"
+            title="Open in new tab"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
       </div>
 
       {/* Download Action Buttons */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
         <button
           onClick={downloadPNG}
-          className="py-3 px-4 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-bold rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2"
+          className="py-3 px-4 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-bold rounded-2xl shadow-sm transition-all apple-press flex items-center justify-center gap-2"
         >
-          <span>📥</span>
-          <span>Download Print-Ready PNG (1024px)</span>
+          <Download className="w-4 h-4" />
+          <span>Print-Ready PNG (1024px)</span>
         </button>
 
         <button
           onClick={downloadSVG}
-          className="py-3 px-4 bg-white border border-stone-300 hover:bg-stone-50 text-stone-800 text-xs font-semibold rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2"
+          className="py-3 px-4 bg-white border border-stone-300 hover:bg-stone-50 text-stone-800 text-xs font-semibold rounded-2xl shadow-xs transition-all apple-press flex items-center justify-center gap-2"
         >
-          <span>📐</span>
+          <FileCode className="w-4 h-4 text-stone-600" />
           <span>Download Vector SVG</span>
         </button>
       </div>

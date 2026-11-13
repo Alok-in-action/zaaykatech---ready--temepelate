@@ -459,9 +459,10 @@ Dal Makhani - Slow cooked black lentils - ₹220`}
                     setActiveTab('text');
                     setErrorMessage(null);
                   }}
-                  className="text-xs h-7 border-destructive/30 hover:bg-destructive/10"
+                  className="text-xs h-7 border-destructive/30 hover:bg-destructive/10 flex items-center gap-1.5"
                 >
-                  ✍️ Switch to Pasted Text Instead
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Switch to Pasted Text Instead</span>
                 </Button>
               </div>
             )}

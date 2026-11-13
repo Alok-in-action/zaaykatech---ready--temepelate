@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { Restaurant, SiteStatus } from '@/types/database';
 import { calculateSiteStatus } from '@/lib/tenant/resolver';
-import { Store, ArrowRight, CheckCircle2, Clock, Sparkles } from 'lucide-react';
+import { Store, ArrowRight, CheckCircle2, Clock, Sparkles, UtensilsCrossed, Palette, QrCode } from 'lucide-react';
 
 export default async function OwnerDashboardPage() {
   const supabase = await createClient();
@@ -62,8 +62,8 @@ export default async function OwnerDashboardPage() {
   if (!restaurant) {
     return (
       <div className="max-w-3xl mx-auto py-12 text-center space-y-6">
-        <div className="w-16 h-16 bg-[#8B4A27]/10 text-[#8B4A27] rounded-3xl flex items-center justify-center mx-auto text-3xl">
-          🍽️
+        <div className="w-16 h-16 bg-[#8B4A27]/10 text-[#8B4A27] rounded-3xl flex items-center justify-center mx-auto">
+          <UtensilsCrossed className="w-8 h-8" />
         </div>
         <h1 className="font-serif text-3xl font-extrabold text-stone-900">
           Welcome to ZaaykaTech!
@@ -294,8 +294,8 @@ export default async function OwnerDashboardPage() {
         {/* Card 1: Menu Management */}
         <div className="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-900 flex items-center justify-center text-lg mb-3">
-              🍽️
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-900 flex items-center justify-center mb-3">
+              <UtensilsCrossed className="w-5 h-5 text-amber-800" />
             </div>
             <h3 className="font-serif text-base font-bold text-stone-900">
               Menu &amp; Dish Catalog
@@ -306,17 +306,18 @@ export default async function OwnerDashboardPage() {
           </div>
           <Link
             href="/owner/menu"
-            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-xl shadow-xs transition-all"
+            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press gap-1.5"
           >
-            Open Menu Manager →
+            <span>Open Menu Manager</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
         {/* Card 2: Custom Branding & Theme */}
         <div className="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="w-10 h-10 rounded-2xl bg-stone-100 text-stone-800 flex items-center justify-center text-lg mb-3">
-              🎨
+            <div className="w-10 h-10 rounded-2xl bg-stone-100 text-stone-800 flex items-center justify-center mb-3">
+              <Palette className="w-5 h-5 text-stone-700" />
             </div>
             <h3 className="font-serif text-base font-bold text-stone-900">
               Branding &amp; Media
@@ -327,17 +328,18 @@ export default async function OwnerDashboardPage() {
           </div>
           <Link
             href="/owner/branding"
-            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all"
+            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press gap-1.5"
           >
-            Customize Branding →
+            <span>Customize Branding</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
         {/* Card 3: QR Code Generator */}
         <div className="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="w-10 h-10 rounded-2xl bg-stone-100 text-stone-800 flex items-center justify-center text-lg mb-3">
-              📱
+            <div className="w-10 h-10 rounded-2xl bg-stone-100 text-stone-800 flex items-center justify-center mb-3">
+              <QrCode className="w-5 h-5 text-stone-700" />
             </div>
             <h3 className="font-serif text-base font-bold text-stone-900">
               Print-Ready QR Stickers
@@ -348,9 +350,10 @@ export default async function OwnerDashboardPage() {
           </div>
           <Link
             href="/owner/qr"
-            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all"
+            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press gap-1.5"
           >
-            Download QR Kit →
+            <span>Download QR Kit</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </div>

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { ArrowLeft, Loader2, ShieldCheck, Sparkles, Store } from 'lucide-react';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -33,65 +34,76 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] flex flex-col justify-center items-center px-4 py-12">
-      <div className="w-full max-w-md bg-white rounded-3xl p-8 sm:p-10 shadow-xl border border-stone-200/60">
+    <div className="min-h-screen bg-[#FAF8F5] flex flex-col justify-center items-center px-4 py-12 selection:bg-[#8B4A27]/20 selection:text-[#8B4A27]">
+      <div className="w-full max-w-md bg-white rounded-3xl p-8 sm:p-10 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.02)] border border-black/[0.06] transition-all">
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <span className="font-serif text-3xl font-extrabold tracking-tight text-[#8B4A27]">
-              Zaayka<span className="text-[#D2691E]">Tech</span>
+          <Link href="/" className="inline-block group">
+            <span className="font-serif text-3xl font-extrabold tracking-tight text-[#8B4A27] transition-transform duration-200 group-hover:scale-[1.02]">
+              Zaayka<span className="text-[#D95B16]">Tech</span>
             </span>
           </Link>
-          <h1 className="font-serif text-xl font-bold text-stone-900 mt-4">
-            Welcome to your Restaurant Portal
+          <h1 className="font-serif text-2xl font-bold text-stone-900 mt-4 tracking-tight">
+            Restaurant Owner Portal
           </h1>
-          <p className="text-xs text-stone-500 mt-1.5 leading-relaxed">
+          <p className="text-xs text-stone-500 mt-2 leading-relaxed">
             Manage your digital menu, customize branding, download QR stickers, and track scans in real time.
           </p>
         </div>
 
+        {/* 24-hr trial badge */}
+        <div className="mb-6 px-3.5 py-2 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-2.5 text-xs text-amber-950 font-medium">
+          <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+          <span>Includes 24-Hour Free Full-Access Trial</span>
+        </div>
+
         {errorMsg && (
-          <div className="mb-6 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
+          <div className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl">
             {errorMsg}
           </div>
         )}
 
-        {/* Google OAuth Button */}
+        {/* Google OAuth Button with Apple-Grade Interaction */}
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-white border border-stone-300 rounded-2xl shadow-sm text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-50 hover:border-stone-400 active:scale-[0.99] transition-all disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-white border border-stone-300/80 rounded-2xl shadow-2xs text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-50 hover:border-stone-400 active:scale-[0.975] transition-all disabled:opacity-60 cursor-pointer"
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24">
-            <path
-              fill="#4285F4"
-              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-            />
-            <path
-              fill="#34A853"
-              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-            />
-            <path
-              fill="#EA4335"
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-            />
-          </svg>
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-stone-500" />
+          ) : (
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+          )}
           <span>{loading ? 'Connecting to Google...' : 'Continue with Google'}</span>
         </button>
 
         <div className="mt-6 text-center">
-          <p className="text-[11px] text-stone-400">
-            By signing in, you agree to ZaaykaTech&apos;s Terms of Service and Privacy Policy.
+          <p className="text-[11px] text-stone-400 leading-relaxed">
+            By signing in, you agree to ZaaykaTech&apos;s Terms of Service and Privacy Policy. Secure authentication via Supabase Auth.
           </p>
         </div>
 
         <div className="mt-8 pt-6 border-t border-stone-100 flex items-center justify-between text-xs">
-          <Link href="/" className="text-stone-500 hover:text-stone-800">
-            ← Back to Home
+          <Link href="/" className="text-stone-500 hover:text-stone-800 transition-colors inline-flex items-center gap-1">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Home</span>
           </Link>
           <Link href="/r/demo" className="text-[#8B4A27] font-semibold hover:underline">
             View Live Demo Menu →
@@ -101,4 +113,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

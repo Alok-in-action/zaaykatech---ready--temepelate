@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { MenuCategory } from '@/types/database';
 import { toggleCategoryActive, deleteCategory, reorderCategories } from '@/actions/category';
+import { ChevronUp, ChevronDown, Edit2, Trash2, AlertTriangle, Plus, FolderKanban } from 'lucide-react';
 
 interface CategoryManagerProps {
   restaurantId: string;
@@ -90,19 +91,24 @@ export function CategoryManager({
   };
 
   return (
-    <div className="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-sm space-y-4">
+    <div className="apple-card rounded-3xl p-5 sm:p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-serif text-lg font-bold text-stone-900">Menu Categories</h2>
+          <h2 className="font-serif text-lg font-bold text-stone-900 tracking-tight flex items-center gap-2">
+            <FolderKanban className="w-4 h-4 text-[#8B4A27]" />
+            <span>Menu Categories</span>
+          </h2>
           <p className="text-xs text-stone-500">
             {categories.length} {categories.length === 1 ? 'category' : 'categories'} configured
           </p>
         </div>
+
         <button
           onClick={onOpenCreateDialog}
-          className="px-3.5 py-1.5 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
+          className="px-3.5 py-1.5 bg-[#8B4A27] hover:bg-[#743c1e] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press inline-flex items-center gap-1 cursor-pointer"
         >
-          + Add Category
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add Category</span>
         </button>
       </div>
 
@@ -116,14 +122,14 @@ export function CategoryManager({
             <div
               key={cat.id}
               onClick={() => onSelectCategory(cat.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs cursor-pointer transition-all flex-shrink-0 ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs cursor-pointer transition-all flex-shrink-0 apple-press ${
                 isSelected
-                  ? 'border-[#8B4A27] bg-[#8B4A27]/5 text-[#8B4A27] font-bold shadow-sm'
-                  : 'border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700'
+                  ? 'border-[#8B4A27] bg-[#8B4A27]/10 text-[#8B4A27] font-bold shadow-2xs'
+                  : 'border-stone-200 bg-stone-50/70 hover:bg-stone-100 text-stone-700'
               }`}
             >
               {/* Up/Down Reorder Buttons */}
-              <div className="flex flex-col -space-y-1">
+              <div className="flex flex-col -space-y-0.5">
                 <button
                   type="button"
                   disabled={idx === 0}
@@ -131,10 +137,10 @@ export function CategoryManager({
                     e.stopPropagation();
                     handleMove(idx, 'up');
                   }}
-                  className="text-[10px] text-stone-400 hover:text-stone-800 disabled:opacity-20 leading-none"
-                  title="Move Up"
+                  className="p-0.5 text-stone-400 hover:text-stone-900 disabled:opacity-20 cursor-pointer"
+                  title="Move Left"
                 >
-                  ▲
+                  <ChevronUp className="w-3 h-3" />
                 </button>
                 <button
                   type="button"
@@ -143,47 +149,47 @@ export function CategoryManager({
                     e.stopPropagation();
                     handleMove(idx, 'down');
                   }}
-                  className="text-[10px] text-stone-400 hover:text-stone-800 disabled:opacity-20 leading-none"
-                  title="Move Down"
+                  className="p-0.5 text-stone-400 hover:text-stone-900 disabled:opacity-20 cursor-pointer"
+                  title="Move Right"
                 >
-                  ▼
+                  <ChevronDown className="w-3 h-3" />
                 </button>
               </div>
 
               <span>{cat.name}</span>
 
               {/* Item Count Badge */}
-              <span className="text-[10px] px-1.5 py-0.2 bg-stone-200/80 text-stone-700 rounded-full font-mono">
+              <span className="text-[10px] px-2 py-0.5 bg-stone-200/80 text-stone-700 rounded-full font-mono font-semibold">
                 {count}
               </span>
 
               {/* Status indicator */}
               {!cat.is_active && (
-                <span className="text-[9px] bg-rose-100 text-rose-700 px-1 py-0.2 rounded font-bold uppercase">
+                <span className="text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-md font-bold uppercase">
                   Inactive
                 </span>
               )}
 
-              {/* Action Dropdown/Buttons */}
-              <div className="flex items-center gap-1 pl-1 border-l border-stone-200">
+              {/* Action Buttons */}
+              <div className="flex items-center gap-0.5 pl-1.5 border-l border-stone-200/80">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onEditCategory(cat);
                   }}
-                  className="text-stone-400 hover:text-stone-800 p-0.5 text-xs"
+                  className="text-stone-400 hover:text-stone-900 p-1 rounded-md hover:bg-stone-200/50 cursor-pointer transition-colors"
                   title="Edit Category"
                 >
-                  ✏️
+                  <Edit2 className="w-3 h-3" />
                 </button>
                 <button
                   type="button"
                   onClick={(e) => handleDeleteClick(e, cat)}
-                  className="text-stone-400 hover:text-rose-600 p-0.5 text-xs"
+                  className="text-stone-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 cursor-pointer transition-colors"
                   title="Delete Category"
                 >
-                  🗑️
+                  <Trash2 className="w-3 h-3" />
                 </button>
               </div>
             </div>
@@ -197,12 +203,12 @@ export function CategoryManager({
         )}
       </div>
 
-      {/* Category Deletion Safeguard Modal (Requirement 8) */}
+      {/* Category Deletion Safeguard Modal */}
       {deleteSafeguard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-stone-200 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl mx-auto mb-3">
-              ⚠️
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in">
+          <div className="apple-card rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-3">
+              <AlertTriangle className="w-6 h-6" />
             </div>
             <h3 className="font-serif text-lg font-bold text-stone-900 mb-2">
               Category Contains {deleteSafeguard.itemCount} Dishes
@@ -211,12 +217,12 @@ export function CategoryManager({
               Category <strong>&quot;{deleteSafeguard.category.name}&quot;</strong> has{' '}
               {deleteSafeguard.itemCount} menu item(s). Deleting this category will permanently remove all dishes inside it.
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 type="button"
                 onClick={() => setDeleteSafeguard(null)}
                 disabled={loading}
-                className="flex-1 py-2.5 px-4 bg-stone-100 text-stone-700 text-xs font-semibold rounded-xl"
+                className="flex-1 py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-semibold rounded-xl apple-press transition-all cursor-pointer"
               >
                 Cancel
               </button>
@@ -224,7 +230,7 @@ export function CategoryManager({
                 type="button"
                 onClick={() => confirmDelete(deleteSafeguard.category.id, true)}
                 disabled={loading}
-                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm"
+                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs apple-press transition-all cursor-pointer"
               >
                 {loading ? 'Deleting...' : 'Delete Category & Dishes'}
               </button>

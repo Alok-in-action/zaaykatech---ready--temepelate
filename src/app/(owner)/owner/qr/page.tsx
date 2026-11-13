@@ -1,28 +1,50 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getOwnerRestaurant } from '@/actions/restaurant';
 import { QRCodeGenerator } from '@/components/owner/QRCodeGenerator';
 import { Restaurant } from '@/types/database';
+import { ArrowRight, QrCode, Sparkles } from 'lucide-react';
 
-export default async function QRPage() {
-  const res = await getOwnerRestaurant();
-  const restaurant: Restaurant | null = res.restaurant;
+export default function QRPage() {
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Fallback demo for preview if no restaurant created yet
+  useEffect(() => {
+    async function loadRestaurant() {
+      try {
+        setLoading(true);
+        const savedId = typeof window !== 'undefined' ? localStorage.getItem('zaayka_active_restaurant_id') : null;
+        const res = await getOwnerRestaurant(savedId || undefined);
+        if (res.success && res.restaurant) {
+          setRestaurant(res.restaurant);
+        }
+      } catch (err) {
+        console.warn('Could not load restaurant for QR:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadRestaurant();
+  }, []);
+
   const slug = restaurant?.slug || 'demo';
   const name = restaurant?.name || 'Cafe 9:50';
   const primaryColor = restaurant?.theme?.primary_color || '#8B4A27';
 
   return (
-    <div className="py-4 space-y-6">
-      {!restaurant && (
-        <div className="max-w-2xl mx-auto bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 flex items-center justify-between">
+    <div className="py-2 space-y-6">
+      {!loading && !restaurant && (
+        <div className="max-w-2xl mx-auto bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
           <span>You haven&apos;t created your restaurant yet. Showing preview for demo menu.</span>
           <Link
             href="/owner/onboarding"
-            className="px-3 py-1 bg-[#8B4A27] text-white rounded-xl font-semibold"
+            className="px-3.5 py-1.5 bg-[#8B4A27] text-white rounded-xl font-semibold flex items-center gap-1.5 shrink-0 apple-press"
           >
-            Create Restaurant →
+            <span>Create Restaurant</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       )}

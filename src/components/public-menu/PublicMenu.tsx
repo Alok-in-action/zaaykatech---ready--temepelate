@@ -6,6 +6,7 @@ import { HeroBanner } from './HeroBanner';
 import { CategoryNav } from './CategoryNav';
 import { MenuItemCard } from './MenuItemCard';
 import { ActionFloaters } from './ActionFloaters';
+import { Search, X, Star, Sparkles, UtensilsCrossed, ArrowUp } from 'lucide-react';
 
 interface PublicMenuProps {
   restaurant: Restaurant;
@@ -90,15 +91,16 @@ export default function PublicMenu({ restaurant, categories, items }: PublicMenu
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search dishes, drinks, ingredients..."
-              className="w-full bg-white text-xs sm:text-sm pl-9 pr-8 py-2.5 rounded-2xl border border-stone-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#8B4A27]/30 transition-all placeholder:text-stone-400"
+              className="w-full bg-white text-xs sm:text-sm pl-10 pr-9 py-2.5 rounded-2xl border border-stone-200/80 shadow-xs focus:outline-none focus:ring-1 focus:ring-[#8B4A27] transition-all placeholder:text-stone-400"
             />
-            <span className="absolute left-3 top-2.5 text-stone-400 text-sm">🔍</span>
+            <Search className="w-4 h-4 absolute left-3.5 top-3 text-stone-400" />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-2.5 text-stone-400 hover:text-stone-600 text-xs"
+                className="absolute right-3 top-2.5 p-1 text-stone-400 hover:text-stone-700 transition-colors"
+                aria-label="Clear search"
               >
-                ✕
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
@@ -107,9 +109,9 @@ export default function PublicMenu({ restaurant, categories, items }: PublicMenu
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
             <button
               onClick={() => setVegOnly(!vegOnly)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all apple-press shrink-0 ${
                 vegOnly
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-emerald-600 text-white shadow-xs'
                   : 'bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-50'
               }`}
             >
@@ -119,24 +121,26 @@ export default function PublicMenu({ restaurant, categories, items }: PublicMenu
 
             <button
               onClick={() => setSelectedTag(selectedTag === 'bestseller' ? null : 'bestseller')}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all apple-press shrink-0 ${
                 selectedTag === 'bestseller'
-                  ? 'bg-[#8B4A27] text-white shadow-sm'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
+                  ? 'bg-[#8B4A27] text-white shadow-xs'
+                  : 'bg-white text-stone-700 border border-stone-200/80 hover:bg-stone-50'
               }`}
             >
-              ★ Bestsellers
+              <Star className="w-3.5 h-3.5" />
+              <span>Bestsellers</span>
             </button>
 
             <button
               onClick={() => setSelectedTag(selectedTag === 'signature' ? null : 'signature')}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all apple-press shrink-0 ${
                 selectedTag === 'signature'
-                  ? 'bg-[#8B4A27] text-white shadow-sm'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
+                  ? 'bg-[#8B4A27] text-white shadow-xs'
+                  : 'bg-white text-stone-700 border border-stone-200/80 hover:bg-stone-50'
               }`}
             >
-              ✨ Signatures
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Signatures</span>
             </button>
           </div>
         </div>
@@ -184,17 +188,19 @@ export default function PublicMenu({ restaurant, categories, items }: PublicMenu
 
           {/* Empty search state */}
           {items.length > 0 && Array.from(itemsByCategoryId.values()).every((arr) => arr.length === 0) && (
-            <div className="text-center py-12 px-4">
-              <span className="text-3xl mb-2 block">🍽️</span>
+            <div className="text-center py-12 px-4 bg-white/60 rounded-3xl border border-stone-200/60 my-6">
+              <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center mx-auto mb-3 text-stone-400">
+                <UtensilsCrossed className="w-6 h-6" />
+              </div>
               <h4 className="font-serif text-base font-semibold text-stone-800">No dishes match your filter</h4>
-              <p className="text-xs text-stone-500 mt-1">Try clearing your search query or filters.</p>
+              <p className="text-xs text-stone-500 mt-1">Try clearing your search keyword or selected dietary badges.</p>
               <button
                 onClick={() => {
                   setSearchQuery('');
                   setVegOnly(false);
                   setSelectedTag(null);
                 }}
-                className="mt-4 px-4 py-1.5 bg-[#8B4A27] text-white text-xs font-medium rounded-full shadow-sm"
+                className="mt-4 px-4 py-2 bg-[#8B4A27] text-white text-xs font-semibold rounded-full shadow-xs apple-press transition-all"
               >
                 Reset Filters
               </button>
@@ -206,9 +212,9 @@ export default function PublicMenu({ restaurant, categories, items }: PublicMenu
         <footer className="text-center py-8 px-4 border-t border-stone-200/60 mt-auto">
           <button
             onClick={scrollToTop}
-            className="inline-flex items-center gap-1 text-xs text-stone-500 hover:text-stone-800 mb-4 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-stone-900 mb-4 transition-colors apple-press"
           >
-            <span>↑</span>
+            <ArrowUp className="w-3.5 h-3.5" />
             <span>Back to top</span>
           </button>
           <div className="text-[11px] text-stone-400">
@@ -217,7 +223,7 @@ export default function PublicMenu({ restaurant, categories, items }: PublicMenu
               href="https://zaaykatech.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-stone-600 hover:text-[#8B4A27] transition-colors"
+              className="font-semibold text-stone-700 hover:text-[#8B4A27] transition-colors"
             >
               ZaaykaTech
             </a>{' '}
@@ -235,4 +241,3 @@ export default function PublicMenu({ restaurant, categories, items }: PublicMenu
     </div>
   );
 }
-
