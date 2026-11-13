@@ -10,7 +10,6 @@ import {
   type CommitMenuPayload,
 } from '@/validations/ai';
 import { slugify } from '@/lib/utils';
-import { extractTextFromImage, extractTextFromPdf } from '@/lib/ocr/engine';
 import { parseMenuText, parseMenuCsv } from '@/lib/ocr/parser';
 import { revalidatePath } from 'next/cache';
 import crypto from 'node:crypto';
@@ -86,14 +85,26 @@ export async function requestAIImportUploadUrl(
     return { success: false, error: 'Unauthorized: Please log in to import menus.' };
   }
 
+  // Resolve authenticated user's profile
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (profileErr || !profile) {
+    return { success: false, error: 'Unauthorized: Owner profile not found.' };
+  }
+
   // Verify ownership
   const { data: restaurant, error: restError } = await supabase
     .from('restaurants')
     .select('id, owner_profile_id')
     .eq('id', restaurantId)
+    .is('archived_at', null)
     .single();
 
-  if (restError || !restaurant || restaurant.owner_profile_id !== user.id) {
+  if (restError || !restaurant || restaurant.owner_profile_id !== profile.id) {
     return { success: false, error: 'Unauthorized: You do not own this restaurant.' };
   }
 
@@ -144,23 +155,35 @@ export async function extractMenuFromSource(
     return { success: false, error: 'Unauthorized: Please log in to continue.' };
   }
 
+  // Resolve authenticated user's profile
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (profileErr || !profile) {
+    return { success: false, error: 'Unauthorized: Owner profile not found.' };
+  }
+
   // Verify ownership
   const { data: restaurant, error: restError } = await supabase
     .from('restaurants')
     .select('id, owner_profile_id, name')
     .eq('id', restaurantId)
+    .is('archived_at', null)
     .single();
 
-  if (restError || !restaurant || restaurant.owner_profile_id !== user.id) {
+  if (restError || !restaurant || restaurant.owner_profile_id !== profile.id) {
     return { success: false, error: 'Unauthorized: You do not own this restaurant.' };
   }
 
   // 1. Enforce rate limiting
   try {
-    await checkAndEnforceAIRateLimits(user.id);
+    await checkAndEnforceAIRateLimits(profile.id);
   } catch (rateLimitErr: any) {
     await logAIAuditEvent({
-      actorId: user.id,
+      actorId: profile.id,
       restaurantId,
       action: 'menu_extraction_rate_limited',
       metadata: { error: rateLimitErr.message },
@@ -170,7 +193,7 @@ export async function extractMenuFromSource(
 
   // 2. Log extraction attempt
   await logAIAuditEvent({
-    actorId: user.id,
+    actorId: profile.id,
     restaurantId,
     action: 'menu_extraction_attempt',
     metadata: {
@@ -221,6 +244,7 @@ export async function extractMenuFromSource(
       const isPdf = effectiveMime === 'application/pdf' || (source.r2Key && source.r2Key.endsWith('.pdf'));
 
       if (isPdf) {
+        const { extractTextFromPdf } = await import('@/lib/ocr/engine');
         const pdfOcr = await extractTextFromPdf(fileBuffer);
         if (!pdfOcr.text || pdfOcr.text.trim().length < 15) {
           throw new Error('We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.');
@@ -228,6 +252,7 @@ export async function extractMenuFromSource(
         extractedResult = parseMenuText(pdfOcr.text, 'pdf', pdfOcr.confidence);
       } else {
         // Image processing with Sharp and Tesseract.js
+        const { extractTextFromImage } = await import('@/lib/ocr/engine');
         const imgOcr = await extractTextFromImage(fileBuffer);
         if (!imgOcr.text || imgOcr.text.trim().length < 15) {
           throw new Error('We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.');
@@ -254,7 +279,7 @@ export async function extractMenuFromSource(
 
     // 5. Log success
     await logAIAuditEvent({
-      actorId: user.id,
+      actorId: profile.id,
       restaurantId,
       action: 'menu_extraction_success',
       metadata: {
@@ -272,7 +297,7 @@ export async function extractMenuFromSource(
   } catch (err: any) {
     console.error('Menu OCR extraction failed:', err);
     await logAIAuditEvent({
-      actorId: user.id,
+      actorId: profile.id,
       restaurantId,
       action: 'menu_extraction_failure',
       metadata: { error: err.message },
@@ -301,14 +326,26 @@ export async function commitExtractedMenu(
     return { success: false, error: 'Unauthorized: Please log in to commit menu.' };
   }
 
+  // Resolve authenticated user's profile
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (profileErr || !profile) {
+    return { success: false, error: 'Unauthorized: Owner profile not found.' };
+  }
+
   // Verify ownership
   const { data: restaurant, error: restError } = await supabase
     .from('restaurants')
     .select('id, owner_profile_id')
     .eq('id', restaurantId)
+    .is('archived_at', null)
     .single();
 
-  if (restError || !restaurant || restaurant.owner_profile_id !== user.id) {
+  if (restError || !restaurant || restaurant.owner_profile_id !== profile.id) {
     return { success: false, error: 'Unauthorized: You do not own this restaurant.' };
   }
 
@@ -420,7 +457,7 @@ export async function commitExtractedMenu(
 
     // 2. Log commit audit event
     await logAIAuditEvent({
-      actorId: user.id,
+      actorId: profile.id,
       restaurantId,
       action: 'menu_committed',
       metadata: {

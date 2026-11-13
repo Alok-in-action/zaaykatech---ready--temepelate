@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 import withBundleAnalyzer from '@next/bundle-analyzer';
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['sharp', 'pdf-parse', 'tesseract.js'],
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -1,6 +1,4 @@
-import sharp from 'sharp';
-import Tesseract from 'tesseract.js';
-import { PDFParse } from 'pdf-parse';
+import '@/lib/polyfills/dommatrix';
 
 export interface OCRExtractionResult {
   text: string;
@@ -18,6 +16,9 @@ export interface OCRExtractionResult {
  */
 export async function preprocessImageForOCR(buffer: Buffer): Promise<Buffer> {
   try {
+    const sharpModule = await import('sharp');
+    const sharp = sharpModule.default || sharpModule;
+
     return await sharp(buffer)
       .resize({ width: 2000, withoutEnlargement: true })
       .grayscale()
@@ -38,6 +39,9 @@ export async function extractTextFromImage(buffer: Buffer): Promise<OCRExtractio
   const processedBuffer = await preprocessImageForOCR(buffer);
 
   try {
+    const tesseractModule = await import('tesseract.js');
+    const Tesseract = tesseractModule.default || tesseractModule;
+
     const { data } = await Tesseract.recognize(processedBuffer, 'eng');
 
     const lines: Array<{ text: string; confidence: number }> = [];
@@ -77,6 +81,9 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<OCRExtractionR
   let isScanned = false;
 
   try {
+    const pdfParseModule = (await import('pdf-parse')) as any;
+    const PDFParse = pdfParseModule.PDFParse || pdfParseModule.default?.PDFParse || pdfParseModule.default || pdfParseModule;
+
     const parser = new PDFParse({ data: buffer });
     const textOutput = await parser.getText();
     await parser.destroy();
@@ -108,6 +115,9 @@ export async function extractTextFromPdf(buffer: Buffer): Promise<OCRExtractionR
   console.log('PDF contains minimal selectable text; falling back to OCR on rendered/embedded images...');
 
   try {
+    const pdfParseModule = (await import('pdf-parse')) as any;
+    const PDFParse = pdfParseModule.PDFParse || pdfParseModule.default?.PDFParse || pdfParseModule.default || pdfParseModule;
+
     const parser = new PDFParse({ data: buffer });
     const screenshot = (await parser.getScreenshot().catch(() => null)) as any;
     await parser.destroy();
