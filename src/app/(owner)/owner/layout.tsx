@@ -38,6 +38,9 @@ export default async function OwnerLayout({
   // Authoritative single-restaurant lifecycle resolution
   const lifecycle = await getOwnerLifecycle();
   const activeRestaurant = lifecycle.restaurant;
+  const isOnboarding =
+    lifecycle.state === 'no_restaurant' ||
+    lifecycle.state === 'onboarding_in_progress';
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-stone-900 flex flex-col font-sans">
@@ -55,6 +58,7 @@ export default async function OwnerLayout({
       <OwnerHeader
         userEmail={user?.email}
         activeRestaurant={activeRestaurant}
+        isOnboarding={isOnboarding}
       />
 
       {/* 3. Main Content Area */}

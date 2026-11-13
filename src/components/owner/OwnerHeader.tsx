@@ -6,18 +6,25 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Restaurant } from '@/types/database';
 import { setActiveRestaurantAction, signOutAction } from '@/actions/restaurant';
 import { createClient } from '@/lib/supabase/client';
-import { ChevronDown, ExternalLink, LogOut, Plus, Store, Sparkles, ChefHat } from 'lucide-react';
+import { ChevronDown, ExternalLink, LogOut, Plus, Store, Sparkles, ChefHat, MessageSquare } from 'lucide-react';
 
 interface OwnerHeaderProps {
   userEmail?: string;
   restaurants?: Restaurant[];
   activeRestaurant: Restaurant | null;
+  isOnboarding?: boolean;
 }
 
-export function OwnerHeader({ userEmail, activeRestaurant }: OwnerHeaderProps) {
+export function OwnerHeader({ userEmail, activeRestaurant, isOnboarding }: OwnerHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const isActuallyOnboarding =
+    isOnboarding ||
+    pathname === '/owner/onboarding' ||
+    !activeRestaurant ||
+    activeRestaurant.onboarding_status !== 'completed';
 
   const handleSignOut = async () => {
     try {
@@ -40,6 +47,46 @@ export function OwnerHeader({ userEmail, activeRestaurant }: OwnerHeaderProps) {
     { href: '/owner/settings', label: 'Settings & Publish' },
     { href: '/owner/billing', label: 'Subscription' },
   ];
+
+  // If onboarding is in progress, hide tabs and show only Logo, WhatsApp Help, and Sign Out
+  if (isActuallyOnboarding) {
+    return (
+      <header className="apple-glass sticky top-0 z-30 transition-all border-b border-stone-200/60 bg-white/80 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <Link href="/owner" className="flex items-center gap-1.5 shrink-0 group">
+            <span className="font-serif text-2xl font-black tracking-tight text-[#8B4A27] transition-transform duration-200 group-hover:scale-[1.02]">
+              Zaayka<span className="text-[#D95B16]">Tech</span>
+            </span>
+            <span className="text-[10px] bg-[#8B4A27]/10 text-[#8B4A27] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">
+              Owner
+            </span>
+          </Link>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <a
+              href="https://wa.me/919999999999?text=Hello%20ZaaykaTech%20support%2C%20I%20need%20help%20with%20restaurant%20onboarding"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold rounded-xl shadow-xs transition-all apple-press"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Need help? WhatsApp</span>
+            </a>
+
+            <button
+              onClick={handleSignOut}
+              disabled={loggingOut}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-stone-500 hover:text-stone-900 hover:bg-stone-100/80 text-xs font-medium rounded-xl transition-all cursor-pointer"
+              title={userEmail ? `Signed in as ${userEmail} (Click to log out)` : 'Sign Out'}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{loggingOut ? 'Signing out...' : 'Sign Out'}</span>
+            </button>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="apple-glass sticky top-0 z-30 transition-all">

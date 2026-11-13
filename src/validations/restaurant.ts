@@ -70,6 +70,7 @@ export const CreateRestaurantSchema = z.object({
     background_color: '#FAF8F5',
     card_style: 'warm_editorial',
   }),
+  onboarding_current_step: z.number().int().optional(),
 });
 
 export const MediaUploadRequestSchema = z.object({
@@ -80,7 +81,7 @@ export const MediaUploadRequestSchema = z.object({
   itemId: z.string().optional(),
 });
 
-export type CreateRestaurantInput = z.infer<typeof CreateRestaurantSchema>;
+export type CreateRestaurantInput = z.input<typeof CreateRestaurantSchema>;
 export type RestaurantDetailsInput = z.infer<typeof RestaurantDetailsSchema>;
 export type RestaurantContactInput = z.infer<typeof RestaurantContactSchema>;
 export type RestaurantAddressInput = z.infer<typeof RestaurantAddressSchema>;

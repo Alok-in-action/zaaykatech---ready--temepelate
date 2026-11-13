@@ -134,7 +134,7 @@ export async function createRestaurant(input: CreateRestaurantInput) {
       trial_ends_at: null, // Trial timer starts only when owner publishes
       published_at: null,  // Nullable with NO default timestamp
       onboarding_source: 'self_serve',
-      onboarding_current_step: 2,
+      onboarding_current_step: data.onboarding_current_step ?? 2,
       onboarding_status: 'in_progress',
       branding: data.branding,
       contact: data.contact,
@@ -707,9 +707,11 @@ export async function saveOnboardingStepAction(
   }
 
   // Only advance onboarding_current_step after all validations pass
+  // Supports both legacy milestone steps (1..5) and granular sub-step codes (11..52)
+  const maxAllowedStep = step > 5 ? 52 : 5;
   updates.onboarding_current_step = Math.min(
-    5,
-    Math.max(step, restaurant.onboarding_current_step || 1)
+    maxAllowedStep,
+    step
   );
 
   const { error } = await supabase

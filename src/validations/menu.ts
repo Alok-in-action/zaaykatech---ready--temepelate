@@ -58,5 +58,5 @@ export const MenuItemSchema = z
     }
   });
 
-export type CategoryInput = z.infer<typeof CategorySchema>;
-export type MenuItemInput = z.infer<typeof MenuItemSchema>;
+export type CategoryInput = z.input<typeof CategorySchema>;
+export type MenuItemInput = z.input<typeof MenuItemSchema>;
