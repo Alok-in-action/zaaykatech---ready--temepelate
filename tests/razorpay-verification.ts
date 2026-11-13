@@ -23,16 +23,16 @@ async function runRazorpayVerificationTests() {
   console.log('   RAZORPAY STANDARD WEB CHECKOUT VERIFICATION TESTS');
   console.log('================================================================\n');
 
-  const keySecret = process.env.RAZORPAY_KEY_SECRET || '31va2hqifK56SNbZW7pIN5V7';
-  const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_Tzk5V72SUTmKyS';
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  const keyId = process.env.RAZORPAY_KEY_ID;
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || 'placeholder_razorpay_webhook_secret';
 
   // ---------------------------------------------------------------------------
   // TEST 1: ENVIRONMENT & CREDENTIAL HYGIENE
   // ---------------------------------------------------------------------------
   console.log('[TEST 1] Verifying Environment Variables & Security Hygiene:');
-  assert.strictEqual(keyId, 'rzp_test_Tzk5V72SUTmKyS', 'RAZORPAY_KEY_ID must match configured test key');
-  assert.strictEqual(keySecret, '31va2hqifK56SNbZW7pIN5V7', 'RAZORPAY_KEY_SECRET must match configured test secret');
+  assert.ok(keyId && keyId.startsWith('rzp_test_'), 'RAZORPAY_KEY_ID must be a valid test key (rzp_test_*)');
+  assert.ok(keySecret && keySecret.length >= 16, 'RAZORPAY_KEY_SECRET must be configured');
   assert.ok(process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID, 'NEXT_PUBLIC_RAZORPAY_KEY_ID must be set for client frontend');
   assert.strictEqual(
     (process.env as any).NEXT_PUBLIC_RAZORPAY_KEY_SECRET,
