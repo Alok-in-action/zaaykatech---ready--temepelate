@@ -31,6 +31,7 @@ async function verifyRestaurantOwnership(restaurantId: string) {
     .from('restaurants')
     .select('id, owner_profile_id')
     .eq('id', restaurantId)
+    .is('archived_at', null)
     .single();
 
   if (!restaurant || restaurant.owner_profile_id !== profile.id) {

@@ -102,25 +102,40 @@ export async function createRestaurant(input: CreateRestaurantInput) {
     profile = newProfile;
   }
 
-  // 3. Generate unique slug (immutable)
+  // 3. Strict One-Restaurant-Per-Owner Enforcement
+  const { data: existingRestaurant } = await supabase
+    .from('restaurants')
+    .select('id, name, slug, onboarding_status, onboarding_current_step')
+    .eq('owner_profile_id', profile.id)
+    .is('archived_at', null)
+    .maybeSingle();
+
+  if (existingRestaurant) {
+    return {
+      success: false,
+      error: 'You already have an active restaurant profile. Each owner can create and manage only one restaurant.',
+      restaurant: existingRestaurant,
+    };
+  }
+
+  // 4. Generate unique slug (immutable)
   const slug = await generateUniqueSlug(data.name, supabase);
 
-  // 4. Calculate trial expiration
-  const trialHours = Number(process.env.TRIAL_DURATION_HOURS || 24);
-  const trialEndsAt = new Date(Date.now() + trialHours * 60 * 60 * 1000).toISOString();
-
-  // 5. Insert restaurant record
+  // 5. Insert restaurant record (Trial timer does NOT start until publish)
   const { data: restaurant, error: restErr } = await supabase
     .from('restaurants')
     .insert({
       owner_profile_id: profile.id,
       name: data.name,
+      food_type: data.food_type || null,
       slug,
       status: 'draft',
-      site_status: 'trialing',
-      trial_ends_at: trialEndsAt,
-      published_at: null, // Nullable with NO default timestamp
+      site_status: 'draft',
+      trial_ends_at: null, // Trial timer starts only when owner publishes
+      published_at: null,  // Nullable with NO default timestamp
       onboarding_source: 'self_serve',
+      onboarding_current_step: 1,
+      onboarding_status: 'in_progress',
       branding: data.branding,
       contact: data.contact,
       address: data.address,
@@ -343,20 +358,32 @@ export async function publishRestaurantAction(restaurantId: string) {
     };
   }
 
-  // 2. Set published_at only if this is the first publish
-  const publishedAt = restaurant.published_at || new Date().toISOString();
+  // 2. Set published_at and start 24h trial timer upon publish
+  const now = new Date();
+  const publishedAt = restaurant.published_at || now.toISOString();
+  const trialHours = Number(process.env.TRIAL_DURATION_HOURS || 24);
+  const trialEndsAt = new Date(now.getTime() + trialHours * 60 * 60 * 1000).toISOString();
 
   const { error } = await supabase
     .from('restaurants')
     .update({
       status: 'published',
       published_at: publishedAt,
+      trial_ends_at: trialEndsAt,
+      site_status: 'trialing',
+      onboarding_status: 'completed',
+      onboarding_completed_at: now.toISOString(),
+      onboarding_current_step: 5,
     })
     .eq('id', restaurantId);
 
   if (error) return { success: false, error: error.message };
 
-  return { success: true, publishedAt };
+  revalidatePath('/owner');
+  revalidatePath('/owner/onboarding');
+  revalidatePath('/owner/billing');
+
+  return { success: true, publishedAt, trialEndsAt };
 }
 
 /**
@@ -406,7 +433,8 @@ export async function unpublishRestaurantAction(restaurantId: string) {
 }
 
 /**
- * 6. Fetches all restaurants owned by the current authenticated user.
+ * 6. Fetches all active restaurants owned by the current authenticated user.
+ * (In one-restaurant-per-owner architecture, returns an array containing the single active restaurant).
  */
 export async function getOwnerRestaurants(): Promise<{
   success: boolean;
@@ -436,6 +464,7 @@ export async function getOwnerRestaurants(): Promise<{
     .from('restaurants')
     .select('*')
     .eq('owner_profile_id', profile.id)
+    .is('archived_at', null)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -449,8 +478,8 @@ export async function getOwnerRestaurants(): Promise<{
 }
 
 /**
- * 7. Fetches a specific restaurant for the authenticated owner, verifying ownership.
- * If restaurantId is omitted, returns the active restaurant (from cookie or most recent).
+ * 7. Fetches the single active restaurant for the authenticated owner, verifying ownership.
+ * Non-archived restaurant is the single authoritative source of truth.
  */
 export async function getOwnerRestaurant(restaurantId?: string): Promise<{
   success: boolean;
@@ -476,24 +505,14 @@ export async function getOwnerRestaurant(restaurantId?: string): Promise<{
     return { success: false, error: 'Profile not found.', restaurant: null };
   }
 
-  let targetId = restaurantId;
-
-  // If no targetId or fallback zero uuid, check cookie
-  if (!targetId || targetId === '00000000-0000-0000-0000-000000000000') {
-    const cookieStore = await cookies();
-    const cookieActiveId = cookieStore.get('zaaykatech_active_restaurant')?.value;
-    if (cookieActiveId && cookieActiveId !== '00000000-0000-0000-0000-000000000000') {
-      targetId = cookieActiveId;
-    }
-  }
-
   let query = supabase
     .from('restaurants')
     .select('*')
-    .eq('owner_profile_id', profile.id);
+    .eq('owner_profile_id', profile.id)
+    .is('archived_at', null);
 
-  if (targetId && targetId !== '00000000-0000-0000-0000-000000000000') {
-    query = query.eq('id', targetId);
+  if (restaurantId && restaurantId !== '00000000-0000-0000-0000-000000000000') {
+    query = query.eq('id', restaurantId);
   } else {
     query = query.order('created_at', { ascending: false }).limit(1);
   }
@@ -515,7 +534,91 @@ export async function getOwnerRestaurant(restaurantId?: string): Promise<{
 }
 
 /**
- * 8. Fetches menu categories and items for an owned restaurant.
+ * 8. Saves progress for a specific onboarding step and updates onboarding_current_step.
+ */
+export async function saveOnboardingStepAction(
+  restaurantId: string,
+  step: number,
+  data: {
+    name?: string;
+    food_type?: string;
+    tagline?: string;
+    contact?: unknown;
+    address?: unknown;
+    social_links?: unknown;
+    branding?: unknown;
+    theme?: unknown;
+  }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Unauthorized.' };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (!profile) return { success: false, error: 'Profile not found.' };
+
+  const { data: restaurant } = await supabase
+    .from('restaurants')
+    .select('id, owner_profile_id, onboarding_current_step, onboarding_status')
+    .eq('id', restaurantId)
+    .is('archived_at', null)
+    .maybeSingle();
+
+  if (!restaurant || restaurant.owner_profile_id !== profile.id) {
+    return { success: false, error: 'Forbidden: You do not own this restaurant.' };
+  }
+
+  const updates: Record<string, unknown> = {
+    onboarding_current_step: Math.min(5, Math.max(step, restaurant.onboarding_current_step || 1)),
+  };
+
+  if (data.name) updates.name = data.name.trim();
+  if (data.food_type !== undefined) updates.food_type = data.food_type ? data.food_type.trim() : null;
+  if (data.tagline) updates.tagline = data.tagline.trim();
+
+  if (data.contact) {
+    const parsed = RestaurantContactSchema.safeParse(data.contact);
+    if (parsed.success) updates.contact = parsed.data;
+  }
+  if (data.address) {
+    const parsed = RestaurantAddressSchema.safeParse(data.address);
+    if (parsed.success) updates.address = parsed.data;
+  }
+  if (data.social_links) {
+    const parsed = RestaurantSocialLinksSchema.safeParse(data.social_links);
+    if (parsed.success) updates.social_links = parsed.data;
+  }
+  if (data.branding) {
+    const parsed = RestaurantBrandingSchema.safeParse(data.branding);
+    if (parsed.success) updates.branding = parsed.data;
+  }
+  if (data.theme) {
+    const parsed = RestaurantThemeSchema.safeParse(data.theme);
+    if (parsed.success) updates.theme = parsed.data;
+  }
+
+  const { error } = await supabase
+    .from('restaurants')
+    .update(updates)
+    .eq('id', restaurantId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath('/owner');
+  revalidatePath('/owner/onboarding');
+  return { success: true };
+}
+
+/**
+ * 9. Fetches menu categories and items for an owned restaurant.
  */
 export async function getOwnerMenuData(restaurantId: string): Promise<{
   success: boolean;
@@ -633,7 +736,54 @@ export async function setActiveRestaurantAction(restaurantId: string): Promise<{
 }
 
 /**
- * 10. Signs out of Supabase and clears any active restaurant cache/cookies.
+ * 11. Soft archives a restaurant. Sets archived_at = now(). Never hard deletes.
+ */
+export async function archiveRestaurantAction(restaurantId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Unauthorized.' };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (!profile) return { success: false, error: 'Profile not found.' };
+
+  // Verify ownership
+  const { data: restaurant } = await supabase
+    .from('restaurants')
+    .select('id, owner_profile_id')
+    .eq('id', restaurantId)
+    .is('archived_at', null)
+    .maybeSingle();
+
+  if (!restaurant || restaurant.owner_profile_id !== profile.id) {
+    return { success: false, error: 'Forbidden: You do not own this restaurant.' };
+  }
+
+  const { error } = await supabase
+    .from('restaurants')
+    .update({
+      archived_at: new Date().toISOString(),
+    })
+    .eq('id', restaurantId);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath('/owner');
+  return { success: true };
+}
+
+/**
+ * 12. Signs out of Supabase and clears active restaurant cookie.
  */
 export async function signOutAction(): Promise<{ success: boolean }> {
   const supabase = await createClient();

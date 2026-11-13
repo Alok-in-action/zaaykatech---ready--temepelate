@@ -1,16 +1,14 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { Restaurant, SiteStatus } from '@/types/database';
-import { calculateSiteStatus } from '@/lib/tenant/resolver';
+import { getOwnerLifecycle } from '@/lib/owner-lifecycle';
 import { TrialCountdownBanner } from '@/components/owner/TrialCountdownBanner';
 import { OwnerHeader } from '@/components/owner/OwnerHeader';
 
 export const metadata: Metadata = {
   title: 'Owner Portal | ZaaykaTech',
-  description: 'Manage menu items, pricing variants, branding, and QR kits for your restaurants.',
+  description: 'Manage menu items, pricing variants, branding, and QR kits for your restaurant.',
   robots: {
     index: false,
     follow: false,
@@ -37,57 +35,24 @@ export default async function OwnerLayout({
     redirect('/login');
   }
 
-  // Fetch all owner's restaurants
-  let restaurants: Restaurant[] = [];
-  let activeRestaurant: Restaurant | null = null;
-  let siteStatus: SiteStatus = 'trialing';
-
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .maybeSingle();
-
-    if (profile) {
-      const { data: userRestaurants } = await supabase
-        .from('restaurants')
-        .select('*')
-        .eq('owner_profile_id', profile.id)
-        .order('created_at', { ascending: false });
-
-      if (userRestaurants && userRestaurants.length > 0) {
-        restaurants = userRestaurants as unknown as Restaurant[];
-
-        // Check active restaurant from cookie
-        const cookieStore = await cookies();
-        const activeCookieId = cookieStore.get('zaaykatech_active_restaurant')?.value;
-        const matched = restaurants.find((r) => r.id === activeCookieId);
-
-        activeRestaurant = matched || restaurants[0];
-        siteStatus = calculateSiteStatus(activeRestaurant);
-      }
-    }
-  }
-
-  // Trial date for active restaurant
-  const trialEndsAt =
-    activeRestaurant?.trial_ends_at ||
-    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  // Authoritative single-restaurant lifecycle resolution
+  const lifecycle = await getOwnerLifecycle();
+  const activeRestaurant = lifecycle.restaurant;
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-stone-900 flex flex-col font-sans">
-      {/* 1. Real-time Trial Countdown Banner */}
-      <TrialCountdownBanner
-        trialEndsAt={trialEndsAt}
-        siteStatus={siteStatus}
-        restaurantId={activeRestaurant?.id}
-      />
+      {/* 1. Real-time Trial & Subscription Countdown Banner (only for published restaurants) */}
+      {activeRestaurant && activeRestaurant.status === 'published' && (
+        <TrialCountdownBanner
+          trialEndsAt={lifecycle.trialEndsAt || new Date().toISOString()}
+          siteStatus={lifecycle.siteStatus}
+          restaurantId={activeRestaurant.id}
+        />
+      )}
 
-      {/* 2. Owner Header with Restaurant Switcher & Tabs */}
+      {/* 2. Owner Header with Single Restaurant Identity */}
       <OwnerHeader
         userEmail={user?.email}
-        restaurants={restaurants}
         activeRestaurant={activeRestaurant}
       />
 

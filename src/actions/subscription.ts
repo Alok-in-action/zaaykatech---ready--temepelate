@@ -37,6 +37,7 @@ export async function createSubscriptionOrder(restaurantId: string) {
     .from('restaurants')
     .select('id, owner_profile_id, name, slug')
     .eq('id', restaurantId)
+    .is('archived_at', null)
     .single();
 
   if (restError || !restaurant || restaurant.owner_profile_id !== profile.id) {
@@ -106,6 +107,7 @@ export async function activateSubscriptionPayment(params: {
     .from('restaurants')
     .select('id, owner_profile_id, slug, subscription_end_date, published_at')
     .eq('id', restaurantId)
+    .is('archived_at', null)
     .single();
 
   if (restError || !restaurant || restaurant.owner_profile_id !== profile.id) {
@@ -248,6 +250,7 @@ export async function getSubscriptionStatus(restaurantId: string) {
     .from('restaurants')
     .select('id, name, slug, status, site_status, trial_ends_at, subscription_end_date, published_at')
     .eq('id', restaurantId)
+    .is('archived_at', null)
     .single();
 
   if (error || !restaurant) {

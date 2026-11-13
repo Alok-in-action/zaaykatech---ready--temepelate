@@ -43,6 +43,9 @@ export function calculateSiteStatus(
   }
 
   // 5. 24-Hour Free Trial Lifecycle
+  if (!restaurant.trial_ends_at) {
+    return 'draft';
+  }
   const trialEnds = new Date(restaurant.trial_ends_at);
   const gracePeriodHours = Number(process.env.GRACE_PERIOD_HOURS || 24);
   const gracePeriodEnds = new Date(trialEnds.getTime() + gracePeriodHours * 60 * 60 * 1000);
@@ -175,6 +178,10 @@ export function getDemoFallbackTenant(slug: string): ResolvedTenantData {
     name: 'Cafe 9:50',
     status: 'published',
     onboarding_source: 'self_serve',
+    onboarding_current_step: 5,
+    onboarding_completed_at: new Date().toISOString(),
+    onboarding_status: 'completed',
+    archived_at: null,
     trial_ends_at: trialEnd,
     published_at: new Date().toISOString(),
     site_status: 'trialing',

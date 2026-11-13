@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const RestaurantDetailsSchema = z.object({
   name: z.string().trim().min(2, 'Restaurant name must be at least 2 characters').max(80),
+  food_type: z.string().trim().max(80).optional().nullable(),
   tagline: z.string().trim().max(150).optional().default('Fresh flavors served with love'),
 });
 
@@ -54,6 +55,7 @@ export const RestaurantThemeSchema = z.object({
 
 export const CreateRestaurantSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(80),
+  food_type: z.string().trim().max(80).optional().nullable(),
   tagline: z.string().trim().max(150).optional().default('Fresh flavors served with love'),
   contact: RestaurantContactSchema.optional().default({}),
   address: RestaurantAddressSchema.optional().default({}),

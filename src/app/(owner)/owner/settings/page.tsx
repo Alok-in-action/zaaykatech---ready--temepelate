@@ -289,7 +289,14 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="pt-4 flex justify-end">
+        <div className="pt-4 flex items-center justify-between border-t border-stone-100">
+          <Link
+            href="/owner/onboarding?edit=true"
+            className="text-xs font-semibold text-[#8B4A27] hover:underline"
+          >
+            Launch Step-by-Step Setup Wizard →
+          </Link>
+
           <button
             onClick={handleSaveDetails}
             disabled={loading}

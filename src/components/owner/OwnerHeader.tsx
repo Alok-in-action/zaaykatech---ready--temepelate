@@ -10,28 +10,14 @@ import { ChevronDown, ExternalLink, LogOut, Plus, Store, Sparkles, ChefHat } fro
 
 interface OwnerHeaderProps {
   userEmail?: string;
-  restaurants: Restaurant[];
+  restaurants?: Restaurant[];
   activeRestaurant: Restaurant | null;
 }
 
-export function OwnerHeader({ userEmail, restaurants, activeRestaurant }: OwnerHeaderProps) {
+export function OwnerHeader({ userEmail, activeRestaurant }: OwnerHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [switching, setSwitching] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-
-  const handleSelectRestaurant = async (restaurantId: string) => {
-    if (!restaurantId || restaurantId === activeRestaurant?.id) return;
-    try {
-      setSwitching(true);
-      const res = await setActiveRestaurantAction(restaurantId);
-      if (res.success) {
-        router.refresh();
-      }
-    } finally {
-      setSwitching(false);
-    }
-  };
 
   const handleSignOut = async () => {
     try {
@@ -49,7 +35,6 @@ export function OwnerHeader({ userEmail, restaurants, activeRestaurant }: OwnerH
   const navLinks = [
     { href: '/owner', label: 'Overview' },
     { href: '/owner/menu', label: 'Menu & Dishes' },
-    { href: '/owner/onboarding', label: 'Setup Wizard' },
     { href: '/owner/branding', label: 'Branding & Theme' },
     { href: '/owner/qr', label: 'QR Code' },
     { href: '/owner/settings', label: 'Settings & Publish' },
@@ -59,7 +44,7 @@ export function OwnerHeader({ userEmail, restaurants, activeRestaurant }: OwnerH
   return (
     <header className="apple-glass sticky top-0 z-30 transition-all">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        {/* Brand & Restaurant Selector */}
+        {/* Brand & Active Restaurant */}
         <div className="flex items-center gap-3 sm:gap-4">
           <Link href="/owner" className="flex items-center gap-1.5 shrink-0 group">
             <span className="font-serif text-2xl font-black tracking-tight text-[#8B4A27] transition-transform duration-200 group-hover:scale-[1.02]">
@@ -70,25 +55,12 @@ export function OwnerHeader({ userEmail, restaurants, activeRestaurant }: OwnerH
             </span>
           </Link>
 
-          {/* Restaurant Switcher */}
-          {restaurants.length > 0 && activeRestaurant && (
+          {/* Active Single Restaurant Identity */}
+          {activeRestaurant && (
             <div className="flex items-center gap-2 pl-3 sm:pl-4 border-l border-stone-200/80">
-              <div className="relative inline-flex items-center">
-                <Store className="w-3.5 h-3.5 text-stone-400 mr-1.5 hidden sm:inline" />
-                <select
-                  value={activeRestaurant.id}
-                  onChange={(e) => handleSelectRestaurant(e.target.value)}
-                  disabled={switching}
-                  aria-label="Switch Restaurant"
-                  className="bg-white/80 border border-black/[0.08] text-stone-800 text-xs font-semibold rounded-xl px-2.5 py-1.5 pr-7 appearance-none cursor-pointer hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#8B4A27]/20 transition-all shadow-2xs"
-                >
-                  {restaurants.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} ({r.slug})
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3 h-3 text-stone-400 absolute right-2 pointer-events-none" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-stone-800">
+                <Store className="w-3.5 h-3.5 text-[#8B4A27]" />
+                <span className="max-w-[140px] sm:max-w-[200px] truncate">{activeRestaurant.name}</span>
               </div>
 
               {activeRestaurant.status === 'published' ? (
@@ -98,7 +70,7 @@ export function OwnerHeader({ userEmail, restaurants, activeRestaurant }: OwnerH
                   rel="noopener noreferrer"
                   className="hidden md:inline-flex items-center gap-1 text-[11px] text-[#8B4A27] hover:underline font-semibold"
                 >
-                  <span>Public View</span>
+                  <span>Public Menu</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               ) : (
@@ -112,21 +84,19 @@ export function OwnerHeader({ userEmail, restaurants, activeRestaurant }: OwnerH
 
         {/* Right CTA Actions */}
         <div className="flex items-center gap-2 sm:gap-2.5">
-          <Link
-            href="/owner/onboarding"
-            className="inline-flex items-center gap-1 px-3 py-1.5 bg-stone-100 hover:bg-stone-200/80 text-stone-800 text-xs font-semibold rounded-xl transition-all apple-press shadow-2xs"
-            title="Create another restaurant"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">New Restaurant</span>
-          </Link>
-
-          {activeRestaurant && (
+          {activeRestaurant ? (
             <Link
               href="/owner/billing"
               className="px-3.5 py-1.5 bg-[#8B4A27] hover:bg-[#743c1e] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press"
             >
               Subscription
+            </Link>
+          ) : (
+            <Link
+              href="/owner/onboarding"
+              className="px-3.5 py-1.5 bg-[#8B4A27] hover:bg-[#743c1e] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press"
+            >
+              Start Onboarding
             </Link>
           )}
 

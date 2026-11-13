@@ -20,6 +20,7 @@ export type SiteStatus =
   | 'suspended';
 
 export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'payment_pending';
+export type OnboardingStatus = 'in_progress' | 'completed';
 export type PaymentStatus = 'pending' | 'succeeded' | 'failed' | 'refunded';
 export type AnalyticsEventType =
   | 'qr_scan'
@@ -83,9 +84,14 @@ export interface Restaurant {
   agent_id: string | null;
   slug: string;
   name: string;
+  food_type?: string | null;
   status: RestaurantStatus;
   onboarding_source: string;
-  trial_ends_at: string;
+  onboarding_current_step: number;
+  onboarding_completed_at: string | null;
+  onboarding_status: OnboardingStatus;
+  archived_at: string | null;
+  trial_ends_at: string | null;
   published_at: string | null;
   site_status: SiteStatus;
   subscription_end_date: string | null;

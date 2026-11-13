@@ -10,16 +10,30 @@ const adminClient = createClient(supabaseUrl, serviceKey);
 async function runOwnershipVerification() {
   console.log('=== STARTING OWNERSHIP VERIFICATION ===\n');
 
-  // 1. Identify primary user
-  const primaryUserId = '227b40e2-e1dd-45b2-a4ca-e60868cd0147'; // itsalokkhamora@gmail.com
+  // 1. Create isolated primary user for ownership test
+  const primaryEmail = `primary-owner-${Date.now()}@example.com`;
+  const { data: primaryAuth, error: pAuthErr } = await adminClient.auth.admin.createUser({
+    email: primaryEmail,
+    password: 'Password123!',
+    email_confirm: true,
+  });
+
+  if (pAuthErr || !primaryAuth?.user) {
+    throw new Error('Failed to create primary auth user: ' + pAuthErr?.message);
+  }
+
   const { data: primaryProfile, error: pErr } = await adminClient
     .from('profiles')
+    .insert({
+      auth_user_id: primaryAuth.user.id,
+      full_name: 'Primary Test Owner',
+      role: 'restaurant_owner',
+    })
     .select('id, auth_user_id, full_name')
-    .eq('auth_user_id', primaryUserId)
     .single();
 
   if (pErr || !primaryProfile) {
-    throw new Error('Primary profile not found: ' + pErr?.message);
+    throw new Error('Primary profile creation failed: ' + pErr?.message);
   }
   console.log('✓ 1. Primary User Identified:');
   console.log('     Auth User ID:', primaryProfile.auth_user_id);
@@ -118,11 +132,13 @@ async function runOwnershipVerification() {
   }
   console.log('     Cross-account edit blocked: 0 rows modified (Strictly Forbidden)');
 
-  // Clean up test restaurant and secondary test user
+  // Clean up test restaurant and test users
   await adminClient.from('restaurants').delete().eq('id', newRest.id);
   await adminClient.from('profiles').delete().eq('id', otherProfile.id);
+  await adminClient.from('profiles').delete().eq('id', primaryProfile.id);
   await adminClient.auth.admin.deleteUser(otherAuthUser.user.id);
-  console.log('\n✓ 6. Cleaned up test verification restaurant and secondary user.');
+  await adminClient.auth.admin.deleteUser(primaryAuth.user.id);
+  console.log('\n✓ 6. Cleaned up test verification restaurant and test users.');
 
   console.log('\n=== ALL OWNERSHIP VERIFICATION CHECKS PASSED ===');
 }

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Loader2, CreditCard } from 'lucide-react';
-import { createSubscriptionOrder, activateSubscriptionPayment } from '@/actions/subscription';
+import { createSubscriptionOrder, activateSubscriptionPayment, getSubscriptionStatus } from '@/actions/subscription';
 
 interface RazorpayCheckoutButtonProps {
   restaurantId?: string;
@@ -19,6 +20,24 @@ declare global {
   }
 }
 
+/**
+ * Polls server getSubscriptionStatus for up to 30 seconds (15 attempts * 2s).
+ */
+async function pollForSubscriptionActive(restaurantId: string, maxAttempts = 15, intervalMs = 2000): Promise<boolean> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const statusRes = await getSubscriptionStatus(restaurantId);
+    if (
+      statusRes.success &&
+      statusRes.data &&
+      (statusRes.data.siteStatus === 'active' || statusRes.data.subscriptionEndDate)
+    ) {
+      return true;
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return false;
+}
+
 export function RazorpayCheckoutButton({
   restaurantId,
   className = '',
@@ -26,7 +45,9 @@ export function RazorpayCheckoutButton({
   label = 'Upgrade to Yearly (₹2,999/yr)',
   onSuccess,
 }: RazorpayCheckoutButtonProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [pollingStatus, setPollingStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadRazorpayScript = (): Promise<boolean> => {
@@ -109,6 +130,7 @@ export function RazorpayCheckoutButton({
           razorpay_signature: string;
         }) => {
           setLoading(true);
+          setPollingStatus('Verifying payment signature...');
           try {
             const actRes = await activateSubscriptionPayment({
               restaurantId,
@@ -121,20 +143,28 @@ export function RazorpayCheckoutButton({
               throw new Error(actRes.error || 'Subscription activation failed.');
             }
 
+            // 4. Poll server up to 30s for subscription active confirmation
+            setPollingStatus('Activating your yearly subscription...');
+            await pollForSubscriptionActive(restaurantId, 15, 2000);
+
             if (onSuccess && actRes.data) {
               onSuccess(actRes.data.subscriptionEndDate);
-            } else {
-              window.location.reload();
             }
+
+            // Always navigate owner directly to management dashboard after successful payment
+            router.push('/owner');
+            router.refresh();
           } catch (err: any) {
             setError(err.message || 'Payment completed but activation failed. Contact support.');
           } finally {
             setLoading(false);
+            setPollingStatus(null);
           }
         },
         modal: {
           ondismiss: () => {
             setLoading(false);
+            setPollingStatus(null);
           },
         },
       };
@@ -143,12 +173,14 @@ export function RazorpayCheckoutButton({
       rzp.on('payment.failed', (response: any) => {
         setError(response.error?.description || 'Payment was declined or failed.');
         setLoading(false);
+        setPollingStatus(null);
       });
       rzp.open();
     } catch (err: any) {
       console.error('Checkout error:', err);
       setError(err.message || 'Could not launch payment modal.');
       setLoading(false);
+      setPollingStatus(null);
     }
   };
 
@@ -164,7 +196,7 @@ export function RazorpayCheckoutButton({
         {loading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            <span>Processing...</span>
+            <span>{pollingStatus || 'Processing...'}</span>
           </>
         ) : (
           <>
