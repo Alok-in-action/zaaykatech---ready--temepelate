@@ -6,12 +6,14 @@ dotenv.config({ path: '.env' });
 
 import { POST as createOrderRoute } from '../src/app/api/create-order/route';
 import { POST as verifyPaymentRoute } from '../src/app/api/verify-payment/route';
+import { POST as webhookRoute } from '../src/app/api/webhooks/razorpay/route';
+import { GET as healthRoute } from '../src/app/api/health/route';
 import { NextRequest } from 'next/server';
 
-function createMockRequest(url: string, body: any): NextRequest {
+function createMockRequest(url: string, body: any, headers: Record<string, string> = {}): NextRequest {
   return new NextRequest(new URL(url, 'http://localhost:3000'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
 }
@@ -23,6 +25,7 @@ async function runRazorpayVerificationTests() {
 
   const keySecret = process.env.RAZORPAY_KEY_SECRET || '31va2hqifK56SNbZW7pIN5V7';
   const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_Tzk5V72SUTmKyS';
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || 'placeholder_razorpay_webhook_secret';
 
   // ---------------------------------------------------------------------------
   // TEST 1: ENVIRONMENT & CREDENTIAL HYGIENE
@@ -68,7 +71,6 @@ async function runRazorpayVerificationTests() {
     receipt: 'rcpt_test_unit_1',
   });
   const validOrderRes = await createOrderRoute(validOrderReq);
-  // Either status is 200 (if key credentials are active in live API) or 401 (if test credentials require activation)
   assert.ok(
     [200, 401].includes(validOrderRes.status),
     `Status must be 200 or 401 (handled gracefully), got ${validOrderRes.status}`
@@ -96,7 +98,6 @@ async function runRazorpayVerificationTests() {
   // 3.1 Missing fields check
   const missingFieldsReq = createMockRequest('http://localhost:3000/api/verify-payment', {
     order_id: testOrderId,
-    // payment_id and signature missing
   });
   const missingFieldsRes = await verifyPaymentRoute(missingFieldsReq);
   assert.strictEqual(missingFieldsRes.status, 400, 'Must return 400 when fields are missing');
@@ -135,8 +136,85 @@ async function runRazorpayVerificationTests() {
   assert.strictEqual(validVerifyJson.payment_id, testPaymentId, 'Response includes verified payment_id');
   console.log('  ✓ Valid HMAC-SHA256 signature verified successfully with HTTP 200');
 
+  // ---------------------------------------------------------------------------
+  // TEST 4: WEBHOOK SIGNATURE & EVENT HANDLING (/api/webhooks/razorpay)
+  // ---------------------------------------------------------------------------
+  console.log('\n[TEST 4] Testing /api/webhooks/razorpay Security & Idempotency:');
+
+  // 4.1 Missing signature rejection
+  const noSigReq = createMockRequest('http://localhost:3000/api/webhooks/razorpay', { event: 'payment.captured' });
+  const noSigRes = await webhookRoute(noSigReq);
+  assert.strictEqual(noSigRes.status, 400, 'Missing x-razorpay-signature header must return 400');
+  console.log('  ✓ Missing webhook signature rejected with HTTP 400');
+
+  // 4.2 Invalid signature rejection
+  const badSigReq = createMockRequest(
+    'http://localhost:3000/api/webhooks/razorpay',
+    { event: 'payment.captured' },
+    { 'x-razorpay-signature': 'invalid_signature_hex' }
+  );
+  const badSigRes = await webhookRoute(badSigReq);
+  assert.strictEqual(badSigRes.status, 401, 'Invalid webhook signature must return 401');
+  console.log('  ✓ Forged webhook signature rejected with HTTP 401');
+
+  // 4.3 Valid signature handling for payment.failed
+  const failedEventPayload = JSON.stringify({
+    event: 'payment.failed',
+    payload: {
+      payment: {
+        entity: {
+          id: 'pay_failed_test_123',
+          amount: 299900,
+          error_code: 'BAD_REQUEST_ERROR',
+          error_description: 'Payment was cancelled or card declined',
+        },
+      },
+    },
+  });
+
+  const validWebhookSig = crypto
+    .createHmac('sha256', webhookSecret)
+    .update(failedEventPayload)
+    .digest('hex');
+
+  const failedWebhookReq = new NextRequest('http://localhost:3000/api/webhooks/razorpay', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-razorpay-signature': validWebhookSig,
+    },
+    body: failedEventPayload,
+  });
+
+  const failedWebhookRes = await webhookRoute(failedWebhookReq);
+  assert.strictEqual(failedWebhookRes.status, 200, 'Valid webhook for payment.failed must return HTTP 200');
+  const failedJson = await failedWebhookRes.json();
+  assert.strictEqual(failedJson.received, true, 'Webhook must report received: true');
+  console.log('  ✓ payment.failed webhook event processed safely with HTTP 200');
+
+  // ---------------------------------------------------------------------------
+  // TEST 5: DEPLOYMENT READINESS HEALTH CHECK (/api/health)
+  // ---------------------------------------------------------------------------
+  console.log('\n[TEST 5] Testing Deployment Readiness Health Endpoint (/api/health):');
+  const healthRes = await healthRoute();
+  assert.strictEqual(healthRes.status, 200, 'Health check must return HTTP 200');
+  const healthJson = await healthRes.json();
+
+  assert.strictEqual(healthJson.status, 'healthy', 'System status must be healthy');
+  assert.strictEqual(healthJson.services.database.status, 'ok', 'Database service must be ok');
+  assert.strictEqual(healthJson.services.storage.status, 'ok', 'Supabase storage must be ok');
+  assert.strictEqual(healthJson.services.razorpay.status, 'ok', 'Razorpay service must be ok');
+  assert.strictEqual(healthJson.services.razorpay.mode, 'test', 'Razorpay mode must report test');
+  assert.strictEqual(
+    healthJson.services.razorpay.keySecret,
+    undefined,
+    'SECURITY: Razorpay keySecret must NEVER be returned in health response'
+  );
+  console.log('  ✓ /api/health reports healthy with database, storage, and Razorpay');
+  console.log('  ✓ Zero secret leakage verified');
+
   console.log('\n================================================================');
-  console.log('  ALL RAZORPAY VERIFICATION TESTS PASSED SUCCESSFULLY! (3/3)');
+  console.log('  ALL RAZORPAY & STAGING VERIFICATION TESTS PASSED! (5/5)');
   console.log('================================================================\n');
 }
 

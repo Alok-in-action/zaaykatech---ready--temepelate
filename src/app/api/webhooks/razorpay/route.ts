@@ -27,6 +27,50 @@ export async function POST(req: NextRequest) {
     const event = JSON.parse(rawBody);
     const eventType = event.event;
 
+    // Handle failed payments
+    if (eventType === 'payment.failed') {
+      const paymentEntity = event.payload?.payment?.entity;
+      const paymentId = paymentEntity?.id || `failed_${Date.now()}`;
+      const restaurantId = paymentEntity?.notes?.restaurantId;
+      const amountPaise = paymentEntity?.amount || YEARLY_PLAN_PRICE_PAISE;
+
+      if (restaurantId) {
+        const serviceClient = createServiceClient();
+        const idempotencyKey = `failed_${paymentId}`;
+
+        const { data: existingPayment } = await serviceClient
+          .from('payments')
+          .select('id')
+          .eq('idempotency_key', idempotencyKey)
+          .maybeSingle();
+
+        if (!existingPayment) {
+          await serviceClient.from('payments').insert({
+            restaurant_id: restaurantId,
+            provider: 'razorpay',
+            external_payment_id: paymentId,
+            idempotency_key: idempotencyKey,
+            amount_paise: amountPaise,
+            status: 'failed',
+            raw_webhook_payload: event,
+          });
+
+          await serviceClient.from('audit_logs').insert({
+            restaurant_id: restaurantId,
+            action: 'payment_failed_webhook',
+            metadata: {
+              payment_id: paymentId,
+              error_code: paymentEntity?.error_code,
+              error_description: paymentEntity?.error_description,
+              error_reason: paymentEntity?.error_reason,
+            },
+          });
+        }
+      }
+
+      return NextResponse.json({ received: true, event: 'payment.failed', status: 'recorded' });
+    }
+
     // We process successful payment captures and order payments
     if (eventType === 'payment.captured' || eventType === 'order.paid') {
       const paymentEntity = event.payload?.payment?.entity;
