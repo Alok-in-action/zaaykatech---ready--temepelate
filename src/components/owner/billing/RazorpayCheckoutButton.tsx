@@ -22,14 +22,22 @@ declare global {
 
 /**
  * Polls server getSubscriptionStatus for up to 30 seconds (15 attempts * 2s).
+ * Strictly confirms activation by comparing the stored subscription end date
+ * with the exact end date returned for this activation.
+ * Does not accept an arbitrary existing date or active status.
  */
-async function pollForSubscriptionActive(restaurantId: string, maxAttempts = 15, intervalMs = 2000): Promise<boolean> {
+async function pollForSubscriptionActive(
+  restaurantId: string,
+  expectedEndDate: string,
+  maxAttempts = 15,
+  intervalMs = 2000
+): Promise<boolean> {
   for (let i = 0; i < maxAttempts; i++) {
     const statusRes = await getSubscriptionStatus(restaurantId);
     if (
       statusRes.success &&
       statusRes.data &&
-      (statusRes.data.siteStatus === 'active' || statusRes.data.subscriptionEndDate)
+      statusRes.data.subscriptionEndDate === expectedEndDate
     ) {
       return true;
     }
@@ -49,6 +57,8 @@ export function RazorpayCheckoutButton({
   const [loading, setLoading] = useState(false);
   const [pollingStatus, setPollingStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState(false);
+  const [confirmedEndDate, setConfirmedEndDate] = useState<string | null>(null);
 
   const loadRazorpayScript = (): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -139,16 +149,27 @@ export function RazorpayCheckoutButton({
               signature: response.razorpay_signature,
             });
 
-            if (!actRes.success) {
+            if (!actRes.success || !actRes.data) {
               throw new Error(actRes.error || 'Subscription activation failed.');
             }
 
-            // 4. Poll server up to 30s for subscription active confirmation
-            setPollingStatus('Activating your yearly subscription...');
-            await pollForSubscriptionActive(restaurantId, 15, 2000);
+            const targetEndDate = actRes.data.subscriptionEndDate;
+            setConfirmedEndDate(targetEndDate);
 
+            // 4. Poll server up to 30s for subscription active confirmation matching exact end date
+            setPollingStatus('Activating your yearly subscription...');
+            const isConfirmed = await pollForSubscriptionActive(restaurantId, targetEndDate, 15, 2000);
+
+            if (!isConfirmed) {
+              setPendingConfirmation(true);
+              setError('Payment received, confirming');
+              // DO NOT call onSuccess or navigate to /owner on polling timeout
+              return;
+            }
+
+            setPendingConfirmation(false);
             if (onSuccess && actRes.data) {
-              onSuccess(actRes.data.subscriptionEndDate);
+              onSuccess(targetEndDate);
             }
 
             // Always navigate owner directly to management dashboard after successful payment
@@ -183,6 +204,59 @@ export function RazorpayCheckoutButton({
       setPollingStatus(null);
     }
   };
+
+  const handleRetryConfirmation = async () => {
+    if (!restaurantId || !confirmedEndDate) return;
+    setError(null);
+    setLoading(true);
+    setPollingStatus('Confirming activation...');
+    try {
+      const isConfirmed = await pollForSubscriptionActive(restaurantId, confirmedEndDate, 10, 1500);
+      if (!isConfirmed) {
+        setError('Payment received, confirming');
+        return;
+      }
+
+      setPendingConfirmation(false);
+      if (onSuccess) {
+        onSuccess(confirmedEndDate);
+      }
+      router.push('/owner');
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || 'Failed to confirm status.');
+    } finally {
+      setLoading(false);
+      setPollingStatus(null);
+    }
+  };
+
+  if (pendingConfirmation) {
+    return (
+      <div className="inline-flex flex-col items-start gap-1.5">
+        <Button
+          type="button"
+          variant="outline"
+          className="border-amber-500 text-amber-700 bg-amber-50 hover:bg-amber-100"
+          onClick={handleRetryConfirmation}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <span>{pollingStatus || 'Checking...'}</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4 mr-2 text-amber-600" />
+              <span>Retry Confirmation</span>
+            </>
+          )}
+        </Button>
+        <span className="text-[11px] text-amber-800 font-medium">Payment received, confirming</span>
+      </div>
+    );
+  }
 
   return (
     <div className="inline-flex flex-col items-start gap-1">

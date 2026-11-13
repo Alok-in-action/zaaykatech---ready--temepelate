@@ -136,7 +136,14 @@ export async function activateSubscriptionPayment(params: {
     .maybeSingle();
 
   if (existingPayment && existingPayment.status === 'succeeded') {
-    return { success: true, message: 'Subscription already active.' };
+    return {
+      success: true,
+      message: 'Subscription already active.',
+      data: {
+        subscriptionEndDate: restaurant.subscription_end_date || '',
+        status: 'active',
+      },
+    };
   }
 
   // Record payment in payments table
@@ -206,7 +213,7 @@ export async function activateSubscriptionPayment(params: {
 
   // Update restaurant status and subscription_end_date
   // Immediately reactivates the same public QR menu URL
-  await serviceClient
+  const { error: updateError } = await serviceClient
     .from('restaurants')
     .update({
       subscription_end_date: formattedEndDate,
@@ -214,6 +221,14 @@ export async function activateSubscriptionPayment(params: {
       status: restaurant.published_at ? 'published' : 'draft',
     })
     .eq('id', restaurantId);
+
+  if (updateError) {
+    console.error('Failed to update restaurant subscription status:', updateError);
+    return {
+      success: false,
+      error: `Failed to update restaurant subscription: ${updateError.message}`,
+    };
+  }
 
   // Log audit event
   await serviceClient.from('audit_logs').insert({
