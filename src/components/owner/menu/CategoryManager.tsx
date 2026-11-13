@@ -1,0 +1,237 @@
+'use client';
+
+import React, { useState } from 'react';
+import { MenuCategory } from '@/types/database';
+import { toggleCategoryActive, deleteCategory, reorderCategories } from '@/actions/category';
+
+interface CategoryManagerProps {
+  restaurantId: string;
+  categories: MenuCategory[];
+  itemCounts: Record<string, number>;
+  selectedCategoryId: string;
+  onSelectCategory: (id: string) => void;
+  onRefresh: () => void;
+  onOpenCreateDialog: () => void;
+  onEditCategory: (cat: MenuCategory) => void;
+}
+
+export function CategoryManager({
+  restaurantId,
+  categories,
+  itemCounts,
+  selectedCategoryId,
+  onSelectCategory,
+  onRefresh,
+  onOpenCreateDialog,
+  onEditCategory,
+}: CategoryManagerProps) {
+  const [deleteSafeguard, setDeleteSafeguard] = useState<{
+    category: MenuCategory;
+    itemCount: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleToggle = async (e: React.MouseEvent, cat: MenuCategory) => {
+    e.stopPropagation();
+    try {
+      await toggleCategoryActive(cat.id, !cat.is_active);
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to toggle category:', err);
+    }
+  };
+
+  const handleMove = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= categories.length) return;
+
+    const reordered = [...categories];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    try {
+      await reorderCategories(
+        restaurantId,
+        reordered.map((c) => c.id)
+      );
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to reorder categories:', err);
+    }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, cat: MenuCategory) => {
+    e.stopPropagation();
+    const count = itemCounts[cat.id] || 0;
+    if (count > 0) {
+      setDeleteSafeguard({ category: cat, itemCount: count });
+    } else {
+      if (confirm(`Are you sure you want to delete category "${cat.name}"?`)) {
+        confirmDelete(cat.id, false);
+      }
+    }
+  };
+
+  const confirmDelete = async (categoryId: string, cascade: boolean) => {
+    try {
+      setLoading(true);
+      const res = await deleteCategory(categoryId, cascade);
+      if (!res.success) {
+        alert(res.error || 'Failed to delete category');
+        return;
+      }
+      setDeleteSafeguard(null);
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to delete category:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-3xl p-5 sm:p-6 border border-stone-200/80 shadow-sm space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-serif text-lg font-bold text-stone-900">Menu Categories</h2>
+          <p className="text-xs text-stone-500">
+            {categories.length} {categories.length === 1 ? 'category' : 'categories'} configured
+          </p>
+        </div>
+        <button
+          onClick={onOpenCreateDialog}
+          className="px-3.5 py-1.5 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
+        >
+          + Add Category
+        </button>
+      </div>
+
+      {/* Categories Pill/List Bar */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+        {categories.map((cat, idx) => {
+          const isSelected = cat.id === selectedCategoryId;
+          const count = itemCounts[cat.id] || 0;
+
+          return (
+            <div
+              key={cat.id}
+              onClick={() => onSelectCategory(cat.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs cursor-pointer transition-all flex-shrink-0 ${
+                isSelected
+                  ? 'border-[#8B4A27] bg-[#8B4A27]/5 text-[#8B4A27] font-bold shadow-sm'
+                  : 'border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700'
+              }`}
+            >
+              {/* Up/Down Reorder Buttons */}
+              <div className="flex flex-col -space-y-1">
+                <button
+                  type="button"
+                  disabled={idx === 0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMove(idx, 'up');
+                  }}
+                  className="text-[10px] text-stone-400 hover:text-stone-800 disabled:opacity-20 leading-none"
+                  title="Move Up"
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  disabled={idx === categories.length - 1}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMove(idx, 'down');
+                  }}
+                  className="text-[10px] text-stone-400 hover:text-stone-800 disabled:opacity-20 leading-none"
+                  title="Move Down"
+                >
+                  ▼
+                </button>
+              </div>
+
+              <span>{cat.name}</span>
+
+              {/* Item Count Badge */}
+              <span className="text-[10px] px-1.5 py-0.2 bg-stone-200/80 text-stone-700 rounded-full font-mono">
+                {count}
+              </span>
+
+              {/* Status indicator */}
+              {!cat.is_active && (
+                <span className="text-[9px] bg-rose-100 text-rose-700 px-1 py-0.2 rounded font-bold uppercase">
+                  Inactive
+                </span>
+              )}
+
+              {/* Action Dropdown/Buttons */}
+              <div className="flex items-center gap-1 pl-1 border-l border-stone-200">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditCategory(cat);
+                  }}
+                  className="text-stone-400 hover:text-stone-800 p-0.5 text-xs"
+                  title="Edit Category"
+                >
+                  ✏️
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteClick(e, cat)}
+                  className="text-stone-400 hover:text-rose-600 p-0.5 text-xs"
+                  title="Delete Category"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {categories.length === 0 && (
+          <div className="w-full text-center py-6 text-xs text-stone-400 border border-dashed border-stone-200 rounded-2xl">
+            No categories created yet. Click &quot;+ Add Category&quot; to start organizing your menu.
+          </div>
+        )}
+      </div>
+
+      {/* Category Deletion Safeguard Modal (Requirement 8) */}
+      {deleteSafeguard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-stone-200 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl mx-auto mb-3">
+              ⚠️
+            </div>
+            <h3 className="font-serif text-lg font-bold text-stone-900 mb-2">
+              Category Contains {deleteSafeguard.itemCount} Dishes
+            </h3>
+            <p className="text-xs text-stone-600 leading-relaxed mb-6">
+              Category <strong>&quot;{deleteSafeguard.category.name}&quot;</strong> has{' '}
+              {deleteSafeguard.itemCount} menu item(s). Deleting this category will permanently remove all dishes inside it.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteSafeguard(null)}
+                disabled={loading}
+                className="flex-1 py-2.5 px-4 bg-stone-100 text-stone-700 text-xs font-semibold rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmDelete(deleteSafeguard.category.id, true)}
+                disabled={loading}
+                className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm"
+              >
+                {loading ? 'Deleting...' : 'Delete Category & Dishes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
