@@ -22,12 +22,14 @@ export default function BillingPage() {
     async function fetchStatus() {
       try {
         setLoading(true);
-        const savedId = typeof window !== 'undefined' ? localStorage.getItem('zaayka_active_restaurant_id') : null;
-        const rRes = await getOwnerRestaurant(savedId || undefined);
+        const rRes = await getOwnerRestaurant();
         if (rRes.success && rRes.restaurant) {
           const activeId = rRes.restaurant.id;
           setRestaurantId(activeId);
           setRestaurantName(rRes.restaurant.name);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('zaayka_active_restaurant_id', activeId);
+          }
 
           const res = await getSubscriptionStatus(activeId);
           if (res.success && res.data) {

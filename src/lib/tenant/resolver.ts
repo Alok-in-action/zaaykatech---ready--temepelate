@@ -106,9 +106,6 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantD
       });
 
       if (error || !menuData) {
-        if (slug === 'demo') {
-          return getDemoFallbackTenant('demo');
-        }
         // If query failed or returned null, in production return 404
         if (isProduction) return null;
         return getDemoFallbackTenant(slug);
@@ -116,7 +113,8 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantD
 
       // Check the returned status from the secure database function
       if (menuData.status === 'not_found') {
-        if (slug === 'demo') {
+        // In development mode, allow demo slug to return demo tenant
+        if (!isProduction && slug === 'demo') {
           return getDemoFallbackTenant('demo');
         }
         // draft, preview, or suspended restaurants return 404
@@ -153,14 +151,14 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantD
     if (isProduction) return null;
   }
 
-  // Allow explicit 'demo' slug for live public menu preview and Lighthouse audits
-  if (slug === 'demo') {
-    return getDemoFallbackTenant('demo');
-  }
-
-  // STRICT RULE: In production, NEVER return demo data for unknown slugs!
+  // STRICT RULE: In production, NEVER return demo data for unknown or demo slugs!
   if (isProduction) {
     return null;
+  }
+
+  // Allow explicit 'demo' slug for local development preview
+  if (slug === 'demo') {
+    return getDemoFallbackTenant('demo');
   }
 
   return null;

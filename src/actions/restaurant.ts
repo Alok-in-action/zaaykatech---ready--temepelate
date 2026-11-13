@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import {
   CreateRestaurantSchema,
   RestaurantDetailsSchema,
@@ -624,6 +625,9 @@ export async function setActiveRestaurantAction(restaurantId: string): Promise<{
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 30, // 30 days
   });
+
+  revalidatePath('/owner', 'layout');
+  revalidatePath('/owner');
 
   return { success: true };
 }

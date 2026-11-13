@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
+import { setActiveRestaurantAction } from '@/actions/restaurant';
 import { Restaurant, SiteStatus } from '@/types/database';
 import { calculateSiteStatus } from '@/lib/tenant/resolver';
 import { Store, ArrowRight, CheckCircle2, Clock, Sparkles, UtensilsCrossed, Palette, QrCode } from 'lucide-react';
@@ -257,13 +258,7 @@ export default async function OwnerDashboardPage() {
                       <form
                         action={async () => {
                           'use server';
-                          const cookieStore = await cookies();
-                          cookieStore.set('zaaykatech_active_restaurant', r.id, {
-                            path: '/',
-                            httpOnly: true,
-                            sameSite: 'lax',
-                            maxAge: 60 * 60 * 24 * 30,
-                          });
+                          await setActiveRestaurantAction(r.id);
                         }}
                       >
                         <button

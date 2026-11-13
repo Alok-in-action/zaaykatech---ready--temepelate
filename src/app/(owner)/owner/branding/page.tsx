@@ -31,10 +31,12 @@ export default function BrandingPage() {
     async function loadBranding() {
       try {
         setInitialLoading(true);
-        const savedId = typeof window !== 'undefined' ? localStorage.getItem('zaayka_active_restaurant_id') : null;
-        const res = await getOwnerRestaurant(savedId || undefined);
+        const res = await getOwnerRestaurant();
         if (res.success && res.restaurant) {
           setRestaurantId(res.restaurant.id);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('zaayka_active_restaurant_id', res.restaurant.id);
+          }
           if (res.restaurant.branding) {
             setBranding(res.restaurant.branding);
           }

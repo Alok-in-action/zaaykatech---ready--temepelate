@@ -15,10 +15,12 @@ export default function QRPage() {
     async function loadRestaurant() {
       try {
         setLoading(true);
-        const savedId = typeof window !== 'undefined' ? localStorage.getItem('zaayka_active_restaurant_id') : null;
-        const res = await getOwnerRestaurant(savedId || undefined);
+        const res = await getOwnerRestaurant();
         if (res.success && res.restaurant) {
           setRestaurant(res.restaurant);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('zaayka_active_restaurant_id', res.restaurant.id);
+          }
         }
       } catch (err) {
         console.warn('Could not load restaurant for QR:', err);
