@@ -20,13 +20,13 @@ export async function createRazorpayOrder(params: {
   receipt?: string;
   notes?: Record<string, string>;
 }): Promise<RazorpayOrderResult> {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  const rawKeyId = process.env.RAZORPAY_KEY_ID?.trim();
+  const rawKeySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
   const amount = params.amountPaise || YEARLY_PLAN_PRICE_PAISE;
   const receipt = params.receipt || `rcpt_${params.restaurantId.slice(0, 8)}_${Date.now()}`;
 
   // If Razorpay keys are not configured or placeholder in development, return a mock order
-  if (!keyId || !keySecret || keyId === 'placeholder_razorpay_key_id') {
+  if (!rawKeyId || !rawKeySecret || rawKeyId === 'placeholder_razorpay_key_id') {
     return {
       id: `order_mock_${Date.now()}`,
       amount,
@@ -35,6 +35,9 @@ export async function createRazorpayOrder(params: {
       status: 'created',
     };
   }
+
+  const keyId = rawKeyId.replace(/^["']|["']$/g, '');
+  const keySecret = rawKeySecret.replace(/^["']|["']$/g, '');
 
   const authHeader = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
   const response = await fetch('https://api.razorpay.com/v1/orders', {
@@ -56,6 +59,11 @@ export async function createRazorpayOrder(params: {
 
   if (!response.ok) {
     const errorText = await response.text();
+    if (response.status === 401) {
+      throw new Error(
+        'Razorpay authentication failed (401): Invalid Key ID or Key Secret. Please verify your Razorpay API keys.'
+      );
+    }
     throw new Error(`Razorpay Order creation failed (${response.status}): ${errorText}`);
   }
 
@@ -71,7 +79,7 @@ export function verifyRazorpayPaymentSignature(params: {
   paymentId: string;
   signature: string;
 }): boolean {
-  const secret = process.env.RAZORPAY_KEY_SECRET;
+  const secret = process.env.RAZORPAY_KEY_SECRET?.trim().replace(/^["']|["']$/g, '');
   if (!secret || secret === 'placeholder_razorpay_key_secret') {
     // In mock/test development environment
     return params.signature.startsWith('mock_sig_') || params.signature.length > 10;

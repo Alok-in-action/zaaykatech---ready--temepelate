@@ -24,15 +24,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const rawKeyId = process.env.RAZORPAY_KEY_ID?.trim();
+    const rawKeySecret = process.env.RAZORPAY_KEY_SECRET?.trim();
 
-    if (!keyId || !keySecret) {
+    if (!rawKeyId || !rawKeySecret) {
       return NextResponse.json(
         { error: 'Razorpay credentials (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET) not configured' },
         { status: 500 }
       );
     }
+
+    const keyId = rawKeyId.replace(/^["']|["']$/g, '');
+    const keySecret = rawKeySecret.replace(/^["']|["']$/g, '');
 
     // 2. Call Razorpay API: POST https://api.razorpay.com/v1/orders
     const authHeader = Buffer.from(`${keyId}:${keySecret}`).toString('base64');

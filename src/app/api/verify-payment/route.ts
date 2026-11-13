@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim().replace(/^["']|["']$/g, '');
     if (!keySecret) {
       return NextResponse.json(
         { success: false, error: 'Razorpay Key Secret is not configured on server' },
