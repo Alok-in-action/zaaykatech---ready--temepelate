@@ -7,13 +7,16 @@ import { ItemManager } from '@/components/owner/menu/ItemManager';
 import { CategoryEditorDialog } from '@/components/owner/menu/CategoryEditorDialog';
 import { ItemEditorDialog } from '@/components/owner/menu/ItemEditorDialog';
 import { MenuCategory, MenuItem } from '@/types/database';
+import { getOwnerRestaurant, getOwnerMenuData } from '@/actions/restaurant';
 
 export default function MenuManagementPage() {
-  const [restaurantId, setRestaurantId] = useState<string>('00000000-0000-0000-0000-000000000000');
+  const [restaurantId, setRestaurantId] = useState<string>('');
+  const [restaurantSlug, setRestaurantSlug] = useState<string>('demo');
   const [categories, setCategories] = useState<MenuCategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Dialog states
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -25,87 +28,34 @@ export default function MenuManagementPage() {
   const loadMenuData = useCallback(async () => {
     try {
       setLoading(true);
-      // Fetch categories & items (or initialize with initial demo categories if local test)
-      // For local development resilience:
-      if (categories.length === 0) {
-        const initialCats: MenuCategory[] = [
-          {
-            id: 'cat-coffee',
-            restaurant_id: restaurantId,
-            name: 'Artisan Coffee',
-            slug: 'artisan-coffee',
-            description: 'Single-origin brews and espresso creations',
-            position: 0,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          {
-            id: 'cat-bakery',
-            restaurant_id: restaurantId,
-            name: 'Fresh Bakery',
-            slug: 'fresh-bakery',
-            description: 'Handcrafted croissants and desserts',
-            position: 1,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ];
-        const initialItems: MenuItem[] = [
-          {
-            id: 'itm-1',
-            restaurant_id: restaurantId,
-            category_id: 'cat-coffee',
-            name: 'Spanish Latte',
-            slug: 'spanish-latte',
-            description: 'Espresso textured with sweetened condensed milk',
-            price_paise: 24000,
-            variant_prices: null,
-            image_url: null,
-            tags: ['Bestseller'],
-            allergens: ['Dairy'],
-            is_veg: true,
-            is_available: true,
-            is_signature: true,
-            is_most_ordered: true,
-            is_monsoon: false,
-            custom_tag: 'Barista Choice',
-            position: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          {
-            id: 'itm-2',
-            restaurant_id: restaurantId,
-            category_id: 'cat-bakery',
-            name: 'Almond Croissant',
-            slug: 'almond-croissant',
-            description: 'Twice-baked butter croissant filled with rich almond cream',
-            price_paise: 21000,
-            variant_prices: null,
-            image_url: null,
-            tags: ['Fresh Baked'],
-            allergens: ['Gluten', 'Nuts', 'Dairy'],
-            is_veg: true,
-            is_available: true,
-            is_signature: false,
-            is_most_ordered: true,
-            is_monsoon: false,
-            custom_tag: null,
-            position: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ];
-        setCategories(initialCats);
-        setItems(initialItems);
-        setSelectedCategoryId(initialCats[0].id);
+      setErrorMsg(null);
+
+      const rRes = await getOwnerRestaurant();
+      if (!rRes.success || !rRes.restaurant) {
+        setErrorMsg(rRes.error || 'No restaurant found. Please create one in Setup Wizard.');
+        return;
       }
+
+      const activeId = rRes.restaurant.id;
+      setRestaurantId(activeId);
+      setRestaurantSlug(rRes.restaurant.slug);
+
+      const menuRes = await getOwnerMenuData(activeId);
+      if (menuRes.success) {
+        setCategories(menuRes.categories);
+        setItems(menuRes.items);
+        if (menuRes.categories.length > 0 && !selectedCategoryId) {
+          setSelectedCategoryId(menuRes.categories[0].id);
+        }
+      } else {
+        setErrorMsg(menuRes.error || 'Failed to load menu items.');
+      }
+    } catch (err: unknown) {
+      setErrorMsg((err as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [categories.length, restaurantId]);
+  }, [selectedCategoryId]);
 
   useEffect(() => {
     loadMenuData();
@@ -162,7 +112,7 @@ export default function MenuManagementPage() {
             Publish Status
           </Link>
           <a
-            href="/r/demo"
+            href={`/r/${restaurantSlug}`}
             target="_blank"
             rel="noopener noreferrer"
             className="px-4 py-2 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
@@ -171,6 +121,12 @@ export default function MenuManagementPage() {
           </a>
         </div>
       </div>
+
+      {errorMsg && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs">
+          {errorMsg}
+        </div>
+      )}
 
       {/* 1. Category Manager */}
       <CategoryManager

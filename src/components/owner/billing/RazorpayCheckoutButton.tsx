@@ -6,7 +6,7 @@ import { Sparkles, Loader2, CreditCard } from 'lucide-react';
 import { createSubscriptionOrder, activateSubscriptionPayment } from '@/actions/subscription';
 
 interface RazorpayCheckoutButtonProps {
-  restaurantId: string;
+  restaurantId?: string;
   className?: string;
   variant?: 'default' | 'outline' | 'secondary';
   label?: string;
@@ -48,6 +48,10 @@ export function RazorpayCheckoutButton({
     setLoading(true);
 
     try {
+      if (!restaurantId || restaurantId === '00000000-0000-0000-0000-000000000000') {
+        throw new Error('Please select or create your restaurant first.');
+      }
+
       // 1. Create order on server
       const orderRes = await createSubscriptionOrder(restaurantId);
       if (!orderRes.success || !orderRes.data) {

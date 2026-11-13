@@ -1,17 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Sparkles, CheckCircle2, ChevronRight, UtensilsCrossed, Scan } from 'lucide-react';
 import { MenuSourceUploader } from '@/components/owner/ai/MenuSourceUploader';
 import { ExtractionReviewTable } from '@/components/owner/ai/ExtractionReviewTable';
 import { Button } from '@/components/ui/button';
 import type { AIMenuExtractionOutput } from '@/validations/ai';
+import { getOwnerRestaurant } from '@/actions/restaurant';
 
 export default function AIMenuImportPage() {
-  const [restaurantId] = useState<string>('00000000-0000-0000-0000-000000000000');
+  const [restaurantId, setRestaurantId] = useState<string>('');
   const [step, setStep] = useState<'upload' | 'review' | 'success'>('upload');
   const [extractedData, setExtractedData] = useState<AIMenuExtractionOutput | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadRestaurant() {
+      try {
+        const res = await getOwnerRestaurant();
+        if (res.success && res.restaurant) {
+          setRestaurantId(res.restaurant.id);
+        } else {
+          setErrorMsg(res.error || 'No restaurant found.');
+        }
+      } catch (err: unknown) {
+        setErrorMsg((err as Error).message);
+      }
+    }
+    loadRestaurant();
+  }, []);
 
   const handleExtractionSuccess = (data: AIMenuExtractionOutput) => {
     setExtractedData(data);

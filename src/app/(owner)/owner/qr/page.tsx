@@ -1,38 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
+import { getOwnerRestaurant } from '@/actions/restaurant';
 import { QRCodeGenerator } from '@/components/owner/QRCodeGenerator';
 import { Restaurant } from '@/types/database';
 
 export default async function QRPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let restaurant: Restaurant | null = null;
-
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .maybeSingle();
-
-    if (profile) {
-      const { data: rest } = await supabase
-        .from('restaurants')
-        .select('*')
-        .eq('owner_profile_id', profile.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (rest) {
-        restaurant = rest as unknown as Restaurant;
-      }
-    }
-  }
+  const res = await getOwnerRestaurant();
+  const restaurant: Restaurant | null = res.restaurant;
 
   // Fallback demo for preview if no restaurant created yet
   const slug = restaurant?.slug || 'demo';

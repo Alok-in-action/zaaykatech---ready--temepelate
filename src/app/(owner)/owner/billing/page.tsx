@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { ArrowLeft, Sparkles, CreditCard, HelpCircle, ShieldCheck } from 'lucide-react';
 import { SubscriptionCard } from '@/components/owner/billing/SubscriptionCard';
 import { getSubscriptionStatus } from '@/actions/subscription';
+import { getOwnerRestaurant } from '@/actions/restaurant';
 import { SiteStatus } from '@/types/database';
 
 export default function BillingPage() {
-  const [restaurantId] = useState<string>('00000000-0000-0000-0000-000000000000');
+  const [restaurantId, setRestaurantId] = useState<string>('');
   const [restaurantName, setRestaurantName] = useState('My Restaurant');
   const [siteStatus, setSiteStatus] = useState<SiteStatus>('trialing');
   const [subscriptionEndDate, setSubscriptionEndDate] = useState<string | null>(null);
@@ -20,22 +21,30 @@ export default function BillingPage() {
   useEffect(() => {
     async function fetchStatus() {
       try {
-        const res = await getSubscriptionStatus(restaurantId);
-        if (res.success && res.data) {
-          setRestaurantName(res.data.name);
-          setSiteStatus(res.data.siteStatus as SiteStatus);
-          setSubscriptionEndDate(res.data.subscriptionEndDate);
-          setTrialEndsAt(res.data.trialEndsAt);
+        setLoading(true);
+        const rRes = await getOwnerRestaurant();
+        if (rRes.success && rRes.restaurant) {
+          const activeId = rRes.restaurant.id;
+          setRestaurantId(activeId);
+          setRestaurantName(rRes.restaurant.name);
+
+          const res = await getSubscriptionStatus(activeId);
+          if (res.success && res.data) {
+            setRestaurantName(res.data.name);
+            setSiteStatus(res.data.siteStatus as SiteStatus);
+            setSubscriptionEndDate(res.data.subscriptionEndDate);
+            setTrialEndsAt(res.data.trialEndsAt);
+          }
         }
       } catch (err) {
-        console.warn('Could not fetch subscription status (using dev defaults):', err);
+        console.warn('Could not fetch subscription status:', err);
       } finally {
         setLoading(false);
       }
     }
 
     fetchStatus();
-  }, [restaurantId]);
+  }, []);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

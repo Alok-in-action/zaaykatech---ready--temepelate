@@ -15,7 +15,7 @@ interface TrialCountdownBannerProps {
 export function TrialCountdownBanner({
   trialEndsAt,
   siteStatus,
-  restaurantId = '00000000-0000-0000-0000-000000000000',
+  restaurantId,
   subscriptionEndDate,
 }: TrialCountdownBannerProps) {
   const [timeLeft, setTimeLeft] = useState<{

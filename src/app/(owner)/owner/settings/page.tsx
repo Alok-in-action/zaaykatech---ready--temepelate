@@ -3,30 +3,72 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
+  getOwnerRestaurant,
   updateRestaurantDetails,
   publishRestaurantAction,
   unpublishRestaurantAction,
 } from '@/actions/restaurant';
 
 export default function SettingsPage() {
-  const [restaurantId, setRestaurantId] = useState<string>('00000000-0000-0000-0000-000000000000');
-  const [slug, setSlug] = useState<string>('demo');
+  const [restaurantId, setRestaurantId] = useState<string>('');
+  const [slug, setSlug] = useState<string>('');
   const [status, setStatus] = useState<'draft' | 'published'>('draft');
-  const [name, setName] = useState<string>('Cafe 9:50');
-  const [phone, setPhone] = useState<string>('+91 98765 43210');
-  const [whatsapp, setWhatsapp] = useState<string>('+919876543210');
-  const [street, setStreet] = useState<string>('Shop 4, Heritage Arcade, FC Road');
-  const [city, setCity] = useState<string>('Pune');
-  const [state, setState] = useState<string>('Maharashtra');
-  const [pincode, setPincode] = useState<string>('411004');
-  const [googleMapsUrl, setGoogleMapsUrl] = useState<string>('https://maps.google.com');
-  const [instagram, setInstagram] = useState<string>('https://instagram.com/cafe950');
-  const [googleReview, setGoogleReview] = useState<string>('https://g.page/r/review');
+  const [name, setName] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
+  const [whatsapp, setWhatsapp] = useState<string>('');
+  const [street, setStreet] = useState<string>('');
+  const [city, setCity] = useState<string>('');
+  const [state, setState] = useState<string>('');
+  const [pincode, setPincode] = useState<string>('');
+  const [googleMapsUrl, setGoogleMapsUrl] = useState<string>('');
+  const [instagram, setInstagram] = useState<string>('');
+  const [googleReview, setGoogleReview] = useState<string>('');
 
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [feedback, setFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  useEffect(() => {
+    async function loadRestaurant() {
+      try {
+        setInitialLoading(true);
+        const res = await getOwnerRestaurant();
+        if (res.success && res.restaurant) {
+          const r = res.restaurant;
+          setRestaurantId(r.id);
+          setSlug(r.slug);
+          setStatus((r.status === 'published' ? 'published' : 'draft'));
+          setName(r.name || '');
+          setPhone(r.contact?.phone || '');
+          setWhatsapp(r.contact?.whatsapp || '');
+          setStreet(r.address?.street || '');
+          setCity(r.address?.city || '');
+          setState(r.address?.state || '');
+          setPincode(r.address?.pincode || '');
+          setGoogleMapsUrl(r.address?.google_maps_url || '');
+          setInstagram(r.social_links?.instagram || '');
+          setGoogleReview(r.social_links?.google_review || '');
+        } else {
+          setFeedback({
+            text: res.error || 'No restaurant found. Please create one in Setup Wizard.',
+            type: 'error',
+          });
+        }
+      } catch (err: unknown) {
+        setFeedback({ text: (err as Error).message, type: 'error' });
+      } finally {
+        setInitialLoading(false);
+      }
+    }
+
+    loadRestaurant();
+  }, []);
+
   const handleSaveDetails = async () => {
+    if (!restaurantId) {
+      setFeedback({ text: 'Please wait until restaurant details are loaded.', type: 'error' });
+      return;
+    }
     setFeedback(null);
     setLoading(true);
     try {
@@ -49,6 +91,10 @@ export default function SettingsPage() {
   };
 
   const handleTogglePublish = async () => {
+    if (!restaurantId) {
+      setFeedback({ text: 'Please wait until restaurant details are loaded.', type: 'error' });
+      return;
+    }
     setFeedback(null);
     setLoading(true);
 

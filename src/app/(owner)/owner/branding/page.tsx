@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { MediaUploader } from '@/components/owner/MediaUploader';
 import { ThemeCustomizer } from '@/components/owner/ThemeCustomizer';
-import { updateBrandingAndTheme } from '@/actions/restaurant';
+import { getOwnerRestaurant, updateBrandingAndTheme } from '@/actions/restaurant';
 import { RestaurantBranding, RestaurantTheme } from '@/types/database';
 
 export default function BrandingPage() {
@@ -23,15 +23,43 @@ export default function BrandingPage() {
   });
 
   const [saving, setSaving] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
-    // In real dashboard, state can be initialized from parent context or fetch
-    // Use fallback demo ID if testing locally
-    setRestaurantId('00000000-0000-0000-0000-000000000000');
+    async function loadBranding() {
+      try {
+        setInitialLoading(true);
+        const res = await getOwnerRestaurant();
+        if (res.success && res.restaurant) {
+          setRestaurantId(res.restaurant.id);
+          if (res.restaurant.branding) {
+            setBranding(res.restaurant.branding);
+          }
+          if (res.restaurant.theme) {
+            setTheme(res.restaurant.theme);
+          }
+        } else {
+          setMessage({
+            text: res.error || 'No restaurant found. Please create one in Setup Wizard.',
+            type: 'error',
+          });
+        }
+      } catch (err: unknown) {
+        setMessage({ text: (err as Error).message, type: 'error' });
+      } finally {
+        setInitialLoading(false);
+      }
+    }
+
+    loadBranding();
   }, []);
 
   const handleSave = async () => {
+    if (!restaurantId) {
+      setMessage({ text: 'Please wait until restaurant details are loaded.', type: 'error' });
+      return;
+    }
     setMessage(null);
 
     // Validate hero video poster rule (Correction 3)

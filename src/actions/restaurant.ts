@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 import {
   CreateRestaurantSchema,
   RestaurantDetailsSchema,
@@ -11,6 +12,7 @@ import {
   RestaurantSocialLinksSchema,
   CreateRestaurantInput,
 } from '@/validations/restaurant';
+import { Restaurant, MenuCategory, MenuItem } from '@/types/database';
 import { slugify } from '@/lib/utils';
 import crypto from 'node:crypto';
 
@@ -137,6 +139,15 @@ export async function createRestaurant(input: CreateRestaurantInput) {
     restaurant_id: restaurant.id,
     short_code: shortCode,
     scan_count: 0,
+  });
+
+  // 7. Set newly created restaurant as active
+  const cookieStore = await cookies();
+  cookieStore.set('zaaykatech_active_restaurant', restaurant.id, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 30, // 30 days
   });
 
   return {
@@ -390,5 +401,240 @@ export async function unpublishRestaurantAction(restaurantId: string) {
 
   if (error) return { success: false, error: error.message };
 
+  return { success: true };
+}
+
+/**
+ * 6. Fetches all restaurants owned by the current authenticated user.
+ */
+export async function getOwnerRestaurants(): Promise<{
+  success: boolean;
+  error?: string;
+  restaurants: Restaurant[];
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Unauthorized.', restaurants: [] };
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    return { success: false, error: 'Profile not found.', restaurants: [] };
+  }
+
+  const { data: restaurants, error } = await supabase
+    .from('restaurants')
+    .select('*')
+    .eq('owner_profile_id', profile.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return { success: false, error: error.message, restaurants: [] };
+  }
+
+  return {
+    success: true,
+    restaurants: (restaurants || []) as unknown as Restaurant[],
+  };
+}
+
+/**
+ * 7. Fetches a specific restaurant for the authenticated owner, verifying ownership.
+ * If restaurantId is omitted, returns the active restaurant (from cookie or most recent).
+ */
+export async function getOwnerRestaurant(restaurantId?: string): Promise<{
+  success: boolean;
+  error?: string;
+  restaurant: Restaurant | null;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Unauthorized.', restaurant: null };
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    return { success: false, error: 'Profile not found.', restaurant: null };
+  }
+
+  let targetId = restaurantId;
+
+  // If no targetId or fallback zero uuid, check cookie
+  if (!targetId || targetId === '00000000-0000-0000-0000-000000000000') {
+    const cookieStore = await cookies();
+    const cookieActiveId = cookieStore.get('zaaykatech_active_restaurant')?.value;
+    if (cookieActiveId && cookieActiveId !== '00000000-0000-0000-0000-000000000000') {
+      targetId = cookieActiveId;
+    }
+  }
+
+  let query = supabase
+    .from('restaurants')
+    .select('*')
+    .eq('owner_profile_id', profile.id);
+
+  if (targetId && targetId !== '00000000-0000-0000-0000-000000000000') {
+    query = query.eq('id', targetId);
+  } else {
+    query = query.order('created_at', { ascending: false }).limit(1);
+  }
+
+  const { data: restaurant, error } = await query.maybeSingle();
+
+  if (error) {
+    return { success: false, error: error.message, restaurant: null };
+  }
+
+  if (!restaurant) {
+    return { success: false, error: 'Restaurant not found or you do not own it.', restaurant: null };
+  }
+
+  return {
+    success: true,
+    restaurant: restaurant as unknown as Restaurant,
+  };
+}
+
+/**
+ * 8. Fetches menu categories and items for an owned restaurant.
+ */
+export async function getOwnerMenuData(restaurantId: string): Promise<{
+  success: boolean;
+  error?: string;
+  categories: MenuCategory[];
+  items: MenuItem[];
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Unauthorized.', categories: [], items: [] };
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    return { success: false, error: 'Profile not found.', categories: [], items: [] };
+  }
+
+  // Strict ownership check
+  const { data: restaurant } = await supabase
+    .from('restaurants')
+    .select('id, owner_profile_id')
+    .eq('id', restaurantId)
+    .single();
+
+  if (!restaurant || restaurant.owner_profile_id !== profile.id) {
+    return { success: false, error: 'Forbidden: You do not own this restaurant.', categories: [], items: [] };
+  }
+
+  const { data: categories, error: catErr } = await supabase
+    .from('menu_categories')
+    .select('*')
+    .eq('restaurant_id', restaurantId)
+    .order('position', { ascending: true });
+
+  if (catErr) {
+    return { success: false, error: catErr.message, categories: [], items: [] };
+  }
+
+  const { data: items, error: itemErr } = await supabase
+    .from('menu_items')
+    .select('*')
+    .eq('restaurant_id', restaurantId)
+    .order('position', { ascending: true });
+
+  if (itemErr) {
+    return { success: false, error: itemErr.message, categories: [], items: [] };
+  }
+
+  return {
+    success: true,
+    categories: (categories || []) as unknown as MenuCategory[],
+    items: (items || []) as unknown as MenuItem[],
+  };
+}
+
+/**
+ * 9. Sets the active restaurant ID cookie for the authenticated owner.
+ */
+export async function setActiveRestaurantAction(restaurantId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Unauthorized.' };
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    return { success: false, error: 'Profile not found.' };
+  }
+
+  // Verify ownership
+  const { data: restaurant } = await supabase
+    .from('restaurants')
+    .select('id')
+    .eq('id', restaurantId)
+    .eq('owner_profile_id', profile.id)
+    .maybeSingle();
+
+  if (!restaurant) {
+    return { success: false, error: 'Forbidden: You do not own this restaurant.' };
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set('zaaykatech_active_restaurant', restaurantId, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+  });
+
+  return { success: true };
+}
+
+/**
+ * 10. Signs out of Supabase and clears any active restaurant cache/cookies.
+ */
+export async function signOutAction(): Promise<{ success: boolean }> {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  const cookieStore = await cookies();
+  cookieStore.delete('zaaykatech_active_restaurant');
   return { success: true };
 }
