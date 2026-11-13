@@ -60,6 +60,6 @@ const recommendMenuItemsFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return {recommendedItems: output!.text};
+    return {recommendedItems: output?.recommendedItems || ''};
   }
 );
