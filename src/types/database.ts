@@ -68,11 +68,13 @@ export interface RestaurantSocialLinks {
   google_review: string | null;
 }
 
+export type CardStyle = 'warm_editorial' | 'minimalist' | 'modern_dark' | 'heritage';
+
 export interface RestaurantTheme {
   primary_color: string;
   accent_color: string;
   background_color: string;
-  card_style: string;
+  card_style: CardStyle;
 }
 
 export interface Restaurant {

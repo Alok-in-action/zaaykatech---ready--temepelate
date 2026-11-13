@@ -67,44 +67,55 @@ export default async function OwnerDashboardPage() {
       {/* 1. Header & Quick Status */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
         <div>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900">
               {restaurant.name}
             </h1>
             <span
-              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${
-                siteStatus === 'active'
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                restaurant.status === 'published'
                   ? 'bg-emerald-100 text-emerald-800'
-                  : siteStatus === 'trialing' || siteStatus === 'trial_ending'
-                  ? 'bg-amber-100 text-amber-800'
-                  : siteStatus === 'grace_period'
-                  ? 'bg-orange-100 text-orange-800'
-                  : 'bg-rose-100 text-rose-800'
+                  : 'bg-amber-100 text-amber-800'
               }`}
             >
-              {siteStatus.replace('_', ' ')}
+              {restaurant.status}
+            </span>
+            <span className="text-xs font-mono bg-stone-100 text-stone-600 px-2.5 py-0.5 rounded-full">
+              slug: {restaurant.slug}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-stone-500 max-w-xl">
-            Your mobile-first QR menu is ready. Customers can scan your QR code or browse your public menu link instantly.
+            {restaurant.status === 'published'
+              ? 'Your mobile-first QR menu is published and accessible to diners.'
+              : 'Your restaurant is currently in draft. Complete your setup and publish when ready.'}
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
-          <a
-            href={publicUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2.5 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-2xl shadow-sm transition-all text-center flex items-center justify-center gap-1.5"
-          >
-            <span>Open Public Menu</span>
-            <span>↗</span>
-          </a>
+          {restaurant.status === 'published' ? (
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-2xl shadow-sm transition-all text-center flex items-center justify-center gap-1.5"
+            >
+              <span>View Public Menu</span>
+              <span>↗</span>
+            </a>
+          ) : (
+            <Link
+              href="/owner/settings"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-2xl shadow-sm transition-all text-center"
+            >
+              Review &amp; Publish Menu →
+            </Link>
+          )}
+
           <Link
             href="/owner/qr"
             className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold rounded-2xl transition-all text-center"
           >
-            Download QR Kit
+            QR Code Kit
           </Link>
         </div>
       </div>
@@ -114,29 +125,24 @@ export default async function OwnerDashboardPage() {
         <div className="bg-white p-5 rounded-2xl border border-stone-200/70 shadow-sm">
           <p className="text-xs font-medium text-stone-400">Total Categories</p>
           <p className="text-2xl font-serif font-bold text-stone-900 mt-1">{categoryCount}</p>
-          <Link
-            href="/owner/menu"
-            className="text-[11px] text-[#8B4A27] font-semibold hover:underline mt-2 inline-block"
-          >
-            Manage categories →
-          </Link>
+          <span className="text-[11px] text-stone-400 mt-2 inline-block">Active sections</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-stone-200/70 shadow-sm">
           <p className="text-xs font-medium text-stone-400">Menu Items</p>
           <p className="text-2xl font-serif font-bold text-stone-900 mt-1">{itemCount}</p>
-          <Link
-            href="/owner/menu"
-            className="text-[11px] text-[#8B4A27] font-semibold hover:underline mt-2 inline-block"
-          >
-            View all items →
-          </Link>
+          <span className="text-[11px] text-stone-400 mt-2 inline-block">Available dishes</span>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-stone-200/70 shadow-sm">
           <p className="text-xs font-medium text-stone-400">QR Code Scans</p>
           <p className="text-2xl font-serif font-bold text-stone-900 mt-1">0</p>
-          <span className="text-[11px] text-stone-400 mt-2 inline-block">Real-time counter</span>
+          <Link
+            href="/owner/qr"
+            className="text-[11px] text-[#8B4A27] font-semibold hover:underline mt-2 inline-block"
+          >
+            View QR stickers →
+          </Link>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-stone-200/70 shadow-sm">
@@ -146,31 +152,31 @@ export default async function OwnerDashboardPage() {
             href="/owner/billing"
             className="text-[11px] text-[#8B4A27] font-semibold hover:underline mt-2 inline-block"
           >
-            View plan details →
+            Manage billing →
           </Link>
         </div>
       </div>
 
       {/* 3. Action Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Card 1: AI Menu Extraction */}
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 p-6 rounded-3xl border border-amber-200/70 shadow-sm flex flex-col justify-between">
+        {/* Card 1: Setup Wizard */}
+        <div className="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="w-10 h-10 rounded-2xl bg-amber-200/70 text-amber-900 flex items-center justify-center text-lg mb-3">
-              ✨
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-900 flex items-center justify-center text-lg mb-3">
+              ⚡
             </div>
             <h3 className="font-serif text-base font-bold text-stone-900">
-              AI Menu Import
+              Onboarding Setup Wizard
             </h3>
             <p className="text-xs text-stone-600 mt-1.5 leading-relaxed">
-              Upload a photo or PDF of your physical paper menu. Google Gemini extracts all categories, dishes, prices, and tags in seconds.
+              Step-by-step wizard to setup your profile, upload logo and hero video, pick themes, and preview your menu.
             </p>
           </div>
           <Link
-            href="/owner/menu/ai-import"
-            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
+            href="/owner/onboarding"
+            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
           >
-            Try AI Menu Import
+            Open Setup Wizard →
           </Link>
         </div>
 
@@ -181,42 +187,41 @@ export default async function OwnerDashboardPage() {
               🎨
             </div>
             <h3 className="font-serif text-base font-bold text-stone-900">
-              Branding &amp; Hero Video
+              Branding &amp; Cloudflare R2
             </h3>
             <p className="text-xs text-stone-600 mt-1.5 leading-relaxed">
-              Upload your restaurant logo, captivating background video or poster image, custom colors, and social links.
+              Upload your logo, high-definition background video (up to 50MB), poster images, and customize brand palettes.
             </p>
           </div>
           <Link
             href="/owner/branding"
             className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
           >
-            Customize Branding
+            Customize Branding →
           </Link>
         </div>
 
-        {/* Card 3: Yearly Plan */}
-        <div className="bg-gradient-to-br from-[#8B4A27]/10 to-[#D2691E]/10 p-6 rounded-3xl border border-[#8B4A27]/20 shadow-sm flex flex-col justify-between">
+        {/* Card 3: QR Code Generator */}
+        <div className="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="w-10 h-10 rounded-2xl bg-[#8B4A27] text-white flex items-center justify-center text-lg mb-3">
-              💳
+            <div className="w-10 h-10 rounded-2xl bg-stone-100 text-stone-800 flex items-center justify-center text-lg mb-3">
+              📱
             </div>
             <h3 className="font-serif text-base font-bold text-stone-900">
-              ZaaykaTech Yearly
+              Print-Ready QR Stickers
             </h3>
             <p className="text-xs text-stone-600 mt-1.5 leading-relaxed">
-              Keep your menu live 365 days a year for just ₹2,999. Includes unlimited items, AI OCR, instant updates, and QR downloads.
+              Download 1024px PNG or vector SVG format with your restaurant name and scan instructions ready for table tents.
             </p>
           </div>
           <Link
-            href="/owner/billing"
-            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
+            href="/owner/qr"
+            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold rounded-xl shadow-sm transition-all"
           >
-            Upgrade Now (₹2999/yr)
+            Download QR Kit →
           </Link>
         </div>
       </div>
     </div>
   );
 }
-

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { Restaurant, SiteStatus } from '@/types/database';
 import { calculateSiteStatus } from '@/lib/tenant/resolver';
+import { TrialCountdownBanner } from '@/components/owner/TrialCountdownBanner';
 
 export default async function OwnerLayout({
   children,
@@ -52,58 +53,15 @@ export default async function OwnerLayout({
     }
   }
 
+  // Fallback demo trial date for preview
+  const trialEndsAt =
+    restaurant?.trial_ends_at ||
+    new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-stone-900 flex flex-col font-sans">
-      {/* 1. Trial / Site Status Banner */}
-      {siteStatus === 'trialing' || siteStatus === 'trial_ending' ? (
-        <div className="bg-amber-500 text-stone-950 px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2 max-w-4xl mx-auto w-full justify-between">
-            <div className="flex items-center gap-2">
-              <span className="animate-pulse">⏳</span>
-              <span>24-Hour Full-Access Trial Active</span>
-              <span className="hidden sm:inline font-normal text-stone-900">
-                — Your public QR menu is live. Upgrade anytime to ensure zero downtime.
-              </span>
-            </div>
-            <Link
-              href="/owner/billing"
-              className="bg-stone-950 hover:bg-stone-800 text-white px-3 py-1 rounded-full text-[11px] font-bold transition-all shadow-sm"
-            >
-              Upgrade (₹2999/yr)
-            </Link>
-          </div>
-        </div>
-      ) : siteStatus === 'grace_period' ? (
-        <div className="bg-rose-500 text-white px-4 py-2 text-xs font-bold flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2 max-w-4xl mx-auto w-full justify-between">
-            <div className="flex items-center gap-2">
-              <span>⚠️</span>
-              <span>Grace Period Active! Your public menu will go offline soon.</span>
-            </div>
-            <Link
-              href="/owner/billing"
-              className="bg-white hover:bg-stone-100 text-rose-700 px-3 py-1 rounded-full text-[11px] font-bold transition-all"
-            >
-              Reactivate Now
-            </Link>
-          </div>
-        </div>
-      ) : siteStatus === 'expired' ? (
-        <div className="bg-stone-900 text-rose-400 px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2 max-w-4xl mx-auto w-full justify-between">
-            <div className="flex items-center gap-2">
-              <span>🔒</span>
-              <span>Public QR Menu is Currently Offline.</span>
-            </div>
-            <Link
-              href="/owner/billing"
-              className="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1 rounded-full text-[11px] font-bold transition-all"
-            >
-              Activate Menu (₹2999)
-            </Link>
-          </div>
-        </div>
-      ) : null}
+      {/* 1. Real-time Trial Countdown Banner (Correction 8) */}
+      <TrialCountdownBanner trialEndsAt={trialEndsAt} siteStatus={siteStatus} />
 
       {/* 2. Top Header Navigation */}
       <header className="bg-white border-b border-stone-200/80 sticky top-0 z-30">
@@ -135,6 +93,15 @@ export default async function OwnerLayout({
           </div>
 
           <div className="flex items-center gap-3">
+            {!restaurant && (
+              <Link
+                href="/owner/onboarding"
+                className="px-3 py-1.5 bg-[#8B4A27] text-white text-xs font-semibold rounded-xl shadow-sm"
+              >
+                + Create Restaurant
+              </Link>
+            )}
+
             {restaurant && (
               <a
                 href={`/r/${restaurant.slug}`}
@@ -165,19 +132,10 @@ export default async function OwnerLayout({
               Overview
             </Link>
             <Link
-              href="/owner/menu"
+              href="/owner/onboarding"
               className="px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors whitespace-nowrap"
             >
-              Menu &amp; Categories
-            </Link>
-            <Link
-              href="/owner/menu/ai-import"
-              className="px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors whitespace-nowrap flex items-center gap-1"
-            >
-              <span>AI Import</span>
-              <span className="text-[9px] bg-amber-200/70 text-amber-900 px-1.5 py-0.2 rounded font-bold">
-                Gemini
-              </span>
+              Setup Wizard
             </Link>
             <Link
               href="/owner/branding"
@@ -192,16 +150,10 @@ export default async function OwnerLayout({
               QR Code
             </Link>
             <Link
-              href="/owner/billing"
-              className="px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors whitespace-nowrap"
-            >
-              Billing (₹2999/yr)
-            </Link>
-            <Link
               href="/owner/settings"
               className="px-3 py-1.5 rounded-lg text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors whitespace-nowrap"
             >
-              Settings
+              Settings &amp; Publish
             </Link>
           </div>
         </nav>
@@ -214,4 +166,3 @@ export default async function OwnerLayout({
     </div>
   );
 }
-
