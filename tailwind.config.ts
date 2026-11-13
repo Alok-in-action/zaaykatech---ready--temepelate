@@ -10,8 +10,17 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-montserrat)', 'Montserrat', 'sans-serif'],
-        script: ['Great Vibes', 'cursive'],
+        sans: [
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          '"Helvetica Neue"',
+          'Arial',
+          'sans-serif',
+        ],
+        script: ['cursive', 'system-ui'],
         code: ['monospace'],
       },
       colors: {

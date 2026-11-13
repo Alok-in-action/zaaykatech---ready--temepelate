@@ -1,14 +1,6 @@
 import type { Metadata, Viewport } from 'next';
-import { Montserrat } from 'next/font/google';
 import './globals.css';
 import PWARegister from '../components/PWARegister';
-
-const montserrat = Montserrat({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-montserrat',
-  weight: ['300', '400', '500', '600', '700', '800'],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || 'https://zaaykatech.com'),
@@ -77,7 +69,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`scroll-smooth ${montserrat.variable}`}>
+    <html lang="en" className="scroll-smooth">
       <body className="font-sans antialiased bg-[#FAF8F5] text-stone-900 selection:bg-[#8B4A27]/20 selection:text-[#8B4A27] min-h-screen flex flex-col">
         <PWARegister />
         {children}
