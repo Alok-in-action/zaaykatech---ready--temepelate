@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ArrowLeft, Loader2, ShieldCheck, Sparkles, Store } from 'lucide-react';
@@ -8,6 +8,20 @@ import { ArrowLeft, Loader2, ShieldCheck, Sparkles, Store } from 'lucide-react';
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get('error');
+      if (err === 'profile_creation_failed') {
+        setErrorMsg('Unable to initialize your owner profile. Please try logging in again.');
+      } else if (err === 'profile_fetch_failed') {
+        setErrorMsg('Unable to load your account profile. Please check your connection and try again.');
+      } else if (err === 'auth_exchange_failed') {
+        setErrorMsg('Authentication expired or failed. Please sign in again.');
+      }
+    }
+  }, []);
 
   const handleGoogleSignIn = async () => {
     try {

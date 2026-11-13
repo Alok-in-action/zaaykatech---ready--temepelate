@@ -13,19 +13,29 @@ export async function GET(request: Request) {
     if (!error && data.user) {
       // Ensure profile exists for this authenticated user
       const { user } = data;
-      const { data: existingProfile } = await supabase
+      const { data: existingProfile, error: profileFetchError } = await supabase
         .from('profiles')
         .select('id')
         .eq('auth_user_id', user.id)
         .maybeSingle();
 
+      if (profileFetchError) {
+        console.error('Failed to query user profile in auth callback:', profileFetchError.message);
+        return NextResponse.redirect(`${origin}/login?error=profile_fetch_failed`);
+      }
+
       if (!existingProfile) {
-        await supabase.from('profiles').insert({
+        const { error: profileInsertError } = await supabase.from('profiles').insert({
           auth_user_id: user.id,
           full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Restaurant Owner',
           phone: user.phone || null,
           role: 'restaurant_owner',
         });
+
+        if (profileInsertError) {
+          console.error('Failed to create user profile in auth callback:', profileInsertError.message);
+          return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`);
+        }
       }
 
       const forwardedHost = request.headers.get('x-forwarded-host');
