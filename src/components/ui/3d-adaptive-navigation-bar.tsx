@@ -24,6 +24,7 @@ export const PillBase: React.FC = () => {
         { label: 'Preview', id: 'preview' },
         { label: 'Why Us', id: 'features' },
         { label: 'Pricing', id: 'pricing' },
+        { label: 'Contact', id: 'contact' },
         { label: 'Sign In', id: 'login' },
     ]
 

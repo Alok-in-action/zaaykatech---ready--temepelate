@@ -12,6 +12,17 @@ export default function LoginPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      const rawNext = params.get('next') || '/owner';
+      const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/owner';
+
+      // Check if user is already authenticated
+      const supabase = createClient();
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) {
+          window.location.href = safeNext;
+        }
+      });
+
       const err = params.get('error');
       if (err === 'profile_creation_failed') {
         setErrorMsg('Unable to initialize your owner profile. Please try logging in again.');
@@ -30,10 +41,14 @@ export default function LoginPage() {
       const supabase = createClient();
       const origin = window.location.origin;
 
+      const params = new URLSearchParams(window.location.search);
+      const rawNext = params.get('next') || '/owner';
+      const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/owner';
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${origin}/auth/callback?next=/owner`,
+          redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(safeNext)}`,
         },
       });
 

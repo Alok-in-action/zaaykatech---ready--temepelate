@@ -67,7 +67,7 @@ test.describe('Marketing Website Conversion & Mobile Suite', () => {
     await faqItem.press('Enter');
     await expect(page.locator('text=The digital menu opens immediately in their mobile browser')).toBeVisible();
 
-    // 7. Capture After Screenshots
+    // 7. Capture Screenshots
     await page.screenshot({
       path: path.join(ARTIFACT_SCREENSHOTS_DIR, 'marketing-after-1280px.png'),
       fullPage: false,
@@ -117,6 +117,192 @@ test.describe('Marketing Website Conversion & Mobile Suite', () => {
       path: path.join(ARTIFACT_SCREENSHOTS_DIR, 'marketing-homepage-390px.png'),
       fullPage: false,
     });
+  });
+
+  test('Comparison Slider: Verify Drag and Keyboard Interactions at 1280px, 390px, 360px', async ({ page }) => {
+    const viewports = [
+      { width: 1280, height: 800, name: 'Desktop 1280px' },
+      { width: 390, height: 844, name: 'iPhone 390px' },
+      { width: 360, height: 740, name: 'Android 360px' },
+    ];
+
+    for (const vp of viewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(400);
+
+      const slider = page.locator('div[role="slider"]').first();
+      await expect(slider).toBeAttached({ timeout: 10000 });
+      await slider.scrollIntoViewIfNeeded();
+      await expect(slider).toBeVisible();
+
+      // Initial value assertion
+      const initialVal = await slider.getAttribute('aria-valuenow');
+      expect(Number(initialVal)).toBe(50);
+
+      // 1. Keyboard interaction test
+      await slider.focus();
+      await slider.press('ArrowRight');
+      await slider.press('ArrowRight');
+      const valAfterRight = await slider.getAttribute('aria-valuenow');
+      expect(Number(valAfterRight)).toBeGreaterThan(50);
+
+      await slider.press('ArrowLeft');
+      const valAfterLeft = await slider.getAttribute('aria-valuenow');
+      expect(Number(valAfterLeft)).toBeLessThan(Number(valAfterRight));
+
+      await slider.press('Home');
+      expect(await slider.getAttribute('aria-valuenow')).toBe('0');
+
+      await slider.press('End');
+      expect(await slider.getAttribute('aria-valuenow')).toBe('100');
+
+      // 2. Drag interaction test with pointer movement across devices
+      const box = await slider.boundingBox();
+      expect(box).not.toBeNull();
+      if (box) {
+        const startX = box.x + box.width * 0.5;
+        const targetX = box.x + box.width * 0.25; // Drag to 25%
+
+        // Dispatch pointer events directly on slider to verify pointer capture & tracking logic
+        await slider.dispatchEvent('pointerdown', { clientX: startX, pointerId: 1, pointerType: 'touch' });
+        await slider.dispatchEvent('pointermove', { clientX: targetX, pointerId: 1, pointerType: 'touch' });
+        await slider.dispatchEvent('pointerup', { pointerId: 1, pointerType: 'touch' });
+
+        const valAfterDrag = Number(await slider.getAttribute('aria-valuenow'));
+        expect(valAfterDrag).toBeLessThan(40);
+      }
+
+      // 3. Accessible range input test
+      const rangeInput = page.locator('#comparison-range-slider');
+      await expect(rangeInput).toBeVisible();
+      await rangeInput.fill('75');
+      expect(await slider.getAttribute('aria-valuenow')).toBe('75');
+    }
+  });
+
+  test('Sign-In Redirect: Verify Hero, Desktop/Mobile Nav, and Next Parameter', async ({ page }) => {
+    // 1. Desktop Nav Sign In
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const desktopSignIn = page.locator('header a:has-text("Sign In"), div a:has-text("Sign In")').first();
+    await desktopSignIn.click();
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.locator('text=Restaurant Owner Portal')).toBeVisible();
+
+    // 2. Hero Sign In Link
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const heroSignIn = page.locator('section a:has-text("Sign in to dashboard")').first();
+    await heroSignIn.click();
+    await expect(page).toHaveURL(/\/login/);
+
+    // 3. Mobile Nav Sign In
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const pill = page.locator('nav').first();
+    await pill.click();
+    const mobileSignInBtn = page.locator('button:has-text("Sign In")');
+    await expect(mobileSignInBtn).toBeVisible();
+    await mobileSignInBtn.click();
+    await expect(page).toHaveURL(/\/login/);
+
+    // 4. Safe internal redirect check on /owner
+    const res = await page.goto('/owner');
+    expect(res?.url()).toContain('/login');
+  });
+
+  test('Connect With Us: Verify Action, Scrolling, and Verified Contact Channels', async ({ page }) => {
+    // 1. Desktop Navbar Contact click
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const contactNav = page.locator('a:has-text("Contact")').first();
+    await contactNav.click();
+    await page.waitForTimeout(600);
+
+    const contactSection = page.locator('#contact');
+    await expect(contactSection).toBeVisible();
+    await expect(page.locator('h2:has-text("Connect with us")')).toBeVisible();
+
+    // Verify WhatsApp direct channel
+    const whatsappLink = page.locator('a[href*="wa.me/917000703701"]');
+    await expect(whatsappLink).toBeVisible();
+
+    // Verify Phone direct channel
+    const phoneLink = page.locator('a[href="tel:+917000703701"]').first();
+    await expect(phoneLink).toBeVisible();
+
+    // Verify Email direct channel
+    const emailLink = page.locator('a[href="mailto:zaaykatech@gmail.com"]').first();
+    await expect(emailLink).toBeVisible();
+
+    // 2. Mobile Nav Contact click
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const pill = page.locator('nav').first();
+    await pill.click();
+
+    const mobileContactBtn = page.locator('button:has-text("Contact")');
+    await expect(mobileContactBtn).toBeVisible();
+    await mobileContactBtn.click();
+    await page.waitForTimeout(600);
+
+    // Verify scroll to contact
+    await expect(contactSection).toBeInViewport({ timeout: 10000 });
+  });
+
+  test('Marketing Images: Verify Zero 404s and Successful Natural Rendering Across Page', async ({ page }) => {
+    const failed404s: string[] = [];
+    page.on('response', (res) => {
+      const url = res.url();
+      if (
+        res.status() === 404 &&
+        !url.includes('_vercel') &&
+        (url.includes('/desktop/') || url.includes('/hero/') || url.includes('/logos/') || url.includes('/brand/') || url.includes('logo.png') || url.includes('favicon.ico'))
+      ) {
+        failed404s.push(url);
+      }
+    });
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(600);
+
+    // Scroll to #work to trigger lazy images
+    const workSection = page.locator('#work');
+    await expect(workSection).toBeAttached({ timeout: 10000 });
+    await workSection.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+
+    // Scroll to bottom
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(1000);
+
+    // Wait for images to finish decoding
+    await page.evaluate(async () => {
+      const imgs = Array.from(document.querySelectorAll('img[src*="desktop"]'));
+      await Promise.all(
+        imgs.map((img) => ((img as HTMLImageElement).decode ? (img as HTMLImageElement).decode().catch(() => {}) : Promise.resolve()))
+      );
+    });
+
+    // Assert zero image 404 errors
+    expect(failed404s, `Found 404 image requests: ${failed404s.join(', ')}`).toHaveLength(0);
+
+    // Assert natural width > 0 for all loaded desktop showcase images
+    const desktopImgs = await page.evaluate(() => {
+      const imgs = Array.from(document.querySelectorAll('img[src*="desktop"]'));
+      return imgs.map((img) => ({
+        src: (img as HTMLImageElement).src,
+        naturalWidth: (img as HTMLImageElement).naturalWidth,
+        complete: (img as HTMLImageElement).complete,
+      }));
+    });
+
+    expect(desktopImgs.length).toBeGreaterThan(0);
+    for (const img of desktopImgs) {
+      expect(img.naturalWidth, `Image failed to decode: ${img.src}`).toBeGreaterThan(0);
+      expect(img.complete).toBe(true);
+    }
   });
 
   test('Responsive Viewport Scan: 320px, 360px, 412px, 768px for Zero Horizontal Overflow', async ({ page }) => {

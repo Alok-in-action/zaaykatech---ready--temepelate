@@ -30,8 +30,8 @@ const footerLinks: FooterSection[] = [
 	{
 		label: 'Company',
 		links: [
-			{ title: 'About Us', href: '#' },
-			{ title: 'Contact', href: '#contact' },
+			{ title: 'About Us', href: '/#features' },
+			{ title: 'Contact', href: '/#contact' },
 			{ title: 'Privacy Policy', href: '#' },
 			{ title: 'Terms of Services', href: '#' },
 		],

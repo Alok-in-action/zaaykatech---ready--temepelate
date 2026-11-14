@@ -15,6 +15,13 @@ export async function middleware(request: NextRequest) {
   // 1. Session refresh with Supabase SSR
   const { response, user } = await updateSession(request);
 
+  // 1b. If user is already authenticated and visits /login, route to dashboard or safe next
+  if (url.pathname === '/login' && user) {
+    const rawNext = url.searchParams.get('next') || '/owner';
+    const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/owner';
+    return NextResponse.redirect(new URL(safeNext, request.url));
+  }
+
   // 2. Subdomain routing for multi-tenant custom domains / subdomains
   // e.g. "mycafe.zaaykatech.com" -> rewrite to "/r/mycafe"
   // Never rewrite platform domains: localhost, *.vercel.app, *.now.sh, *.netlify.app
