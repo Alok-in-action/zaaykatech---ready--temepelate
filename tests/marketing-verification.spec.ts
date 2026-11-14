@@ -199,6 +199,7 @@ test.describe('Marketing Website Conversion & Mobile Suite', () => {
     // 3. Mobile Nav Sign In
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(600);
     const pill = page.locator('nav').first();
     await pill.click();
     const mobileSignInBtn = page.locator('button:has-text("Sign In")');
