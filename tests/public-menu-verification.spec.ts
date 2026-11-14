@@ -1,21 +1,23 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Public Menu & Owner Regression Suite', () => {
-  test('Capture After Screenshots of Owner Portal at 390px', async ({ page }) => {
+  test('Capture After Screenshots of Owner Portal at 390px', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     // /owner (redirects to /login or /owner/onboarding when unauthenticated)
-    await page.goto('/owner');
+    const res = await page.goto('/owner');
+    expect(res?.status()).toBeLessThan(400);
     await page.waitForTimeout(1000);
     await page.screenshot({
-      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/after-owner-390px.png',
+      path: testInfo.outputPath('after-owner-390px.png'),
       fullPage: true,
     });
   });
 
-  test('Public Menu at /r/demo - 390px Mobile Viewport', async ({ page }) => {
+  test('Public Menu at /r/demo - 390px Mobile Viewport', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/r/demo');
+    const res = await page.goto('/r/demo');
+    expect(res?.status()).toBe(200);
     await page.waitForLoadState('networkidle');
 
     // Verify no horizontal overflow
@@ -44,14 +46,19 @@ test.describe('Public Menu & Owner Regression Suite', () => {
 
     // Capture screenshot at 390px
     await page.screenshot({
-      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/saas-menu-390px.png',
+      path: testInfo.outputPath('saas-menu-390px.png'),
       fullPage: true,
     });
   });
 
-  test('Real Restaurant with Custom Categories at /r/chai-point - 390px', async ({ page }) => {
+  test('Real Restaurant with Custom Categories at /r/chai-point - 390px', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/r/chai-point');
+    const res = await page.goto('/r/chai-point');
+    if (!res || res.status() === 404) {
+      test.skip(true, 'Live database tenant /r/chai-point is not available');
+      return;
+    }
+    expect(res.status()).toBe(200);
     await page.waitForLoadState('networkidle');
 
     // Verify no horizontal overflow on real restaurant
@@ -76,14 +83,15 @@ test.describe('Public Menu & Owner Regression Suite', () => {
 
     // Capture screenshot at 390px
     await page.screenshot({
-      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/chai-point-390px.png',
+      path: testInfo.outputPath('chai-point-390px.png'),
       fullPage: true,
     });
   });
 
-  test('Public Menu at /r/demo - 1280px Desktop Viewport', async ({ page }) => {
+  test('Public Menu at /r/demo - 1280px Desktop Viewport', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/r/demo');
+    const res = await page.goto('/r/demo');
+    expect(res?.status()).toBe(200);
     await page.waitForLoadState('networkidle');
 
     // Verify desktop header
@@ -92,14 +100,15 @@ test.describe('Public Menu & Owner Regression Suite', () => {
 
     // Capture screenshot at 1280px
     await page.screenshot({
-      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/saas-menu-1280px.png',
+      path: testInfo.outputPath('saas-menu-1280px.png'),
       fullPage: true,
     });
   });
 
   test('Quick Links Menu Interactions (Call, WhatsApp, Owner Portal)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/r/demo');
+    const res = await page.goto('/r/demo');
+    expect(res?.status()).toBe(200);
     await page.waitForLoadState('networkidle');
 
     // Click Hamburger menu button in header

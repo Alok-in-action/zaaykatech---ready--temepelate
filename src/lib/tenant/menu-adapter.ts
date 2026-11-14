@@ -78,6 +78,12 @@ export function adaptDatabaseToTemplateMenu(
   ].filter(Boolean);
   const formattedAddress = addressParts.length > 0 ? addressParts.join(', ') : undefined;
 
+  // C3: For image heroes, use hero_media_url first and hero_poster_url as fallback; video unchanged
+  const isVideo = restaurant.branding?.hero_media_type === 'video';
+  const heroPoster = isVideo
+    ? (restaurant.branding?.hero_poster_url || undefined)
+    : (restaurant.branding?.hero_media_url || restaurant.branding?.hero_poster_url || undefined);
+
   // Construct final ThemeConfig with actual restaurant branding and contact details
   const finalTheme: ThemeConfig = {
     ...baseTheme,
@@ -86,13 +92,11 @@ export function adaptDatabaseToTemplateMenu(
     logoUrl: restaurant.branding?.logo_url || undefined,
     heroMediaType: restaurant.branding?.hero_media_type || 'image',
     heroVideoUrl:
-      restaurant.branding?.hero_media_type === 'video' && restaurant.branding?.hero_media_url
+      isVideo && restaurant.branding?.hero_media_url
         ? restaurant.branding.hero_media_url
         : undefined,
-    heroPosterUrl: restaurant.branding?.hero_poster_url || undefined,
-    showHeroVideo:
-      restaurant.branding?.hero_media_type === 'video' &&
-      Boolean(restaurant.branding?.hero_media_url),
+    heroPosterUrl: heroPoster,
+    showHeroVideo: isVideo && Boolean(restaurant.branding?.hero_media_url),
     mobileNumber: restaurant.contact?.phone || undefined,
     whatsappNumber: restaurant.contact?.whatsapp || undefined,
     address: formattedAddress,
@@ -112,10 +116,11 @@ export function adaptDatabaseToTemplateMenu(
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
     const mappedItems: TemplateMenuItem[] = catItems.map((item) => {
-      // Format standard price from paise to rupees
+      // A6: Format standard price without rounding, showing decimals only when paise exist
       let formattedPrice: string | undefined = undefined;
       if (item.price_paise !== null && item.price_paise !== undefined) {
-        formattedPrice = `₹${Math.round(item.price_paise / 100)}`;
+        const rupees = item.price_paise / 100;
+        formattedPrice = rupees % 1 !== 0 ? `₹${rupees.toFixed(2)}` : `₹${rupees}`;
       }
 
       // Format variant prices if present
@@ -123,23 +128,52 @@ export function adaptDatabaseToTemplateMenu(
       let pizzaPrices: { ny: number; neap: number } | undefined = undefined;
 
       if (item.variant_prices && typeof item.variant_prices === 'object') {
-        formattedVariantPrices = {};
-        for (const [key, val] of Object.entries(item.variant_prices)) {
-          if (typeof val === 'number') {
-            // If stored in paise (e.g. > 1000) or rupees
-            const inRupees = val > 1000 ? Math.round(val / 100) : val;
-            formattedVariantPrices[key] = `₹${inRupees}`;
-            if (!pizzaPrices) {
-              pizzaPrices = { ny: inRupees, neap: inRupees };
+        const entries = Object.entries(item.variant_prices);
+        if (entries.length > 0) {
+          const tempVariants: Record<string, string | number> = {};
+          let rawNy: number | undefined = undefined;
+          let rawNeap: number | undefined = undefined;
+
+          for (const [key, val] of entries) {
+            const trimmedKey = key.trim();
+            if (!trimmedKey) continue;
+            const normKey = trimmedKey.toLowerCase();
+            const rawVal: unknown = val;
+
+            if (typeof rawVal === 'number') {
+              // Magnitude check: if stored in paise (> 1000) or rupees
+              const inRupees = rawVal > 1000 ? rawVal / 100 : rawVal;
+              const formattedVal = inRupees % 1 === 0 ? String(inRupees) : inRupees.toFixed(2);
+              tempVariants[trimmedKey] = `₹${formattedVal}`;
+
+              if (normKey === 'ny' || normKey === 'ny_style' || normKey === 'new york') {
+                rawNy = inRupees;
+              } else if (normKey === 'neap' || normKey === 'neapolitan') {
+                rawNeap = inRupees;
+              }
+            } else if (typeof rawVal === 'string' && rawVal.trim()) {
+              const strVal = rawVal.trim();
+              tempVariants[trimmedKey] = strVal.startsWith('₹') ? strVal : `₹${strVal}`;
+
+              const parsedNum = parseFloat(strVal.replace(/[^0-9.]/g, ''));
+              if (!isNaN(parsedNum)) {
+                if (normKey === 'ny' || normKey === 'ny_style' || normKey === 'new york') {
+                  rawNy = parsedNum;
+                } else if (normKey === 'neap' || normKey === 'neapolitan') {
+                  rawNeap = parsedNum;
+                }
+              }
             }
-            if (key.toLowerCase() === 'ny') {
-              pizzaPrices.ny = inRupees;
-            } else if (key.toLowerCase() === 'neap') {
-              pizzaPrices.neap = inRupees;
-            }
-          } else if (typeof val === 'string') {
-            const strVal = val as string;
-            formattedVariantPrices[key] = strVal.startsWith('₹') ? strVal : `₹${strVal}`;
+          }
+
+          // A4: Leave undefined when variant_prices has no displayable entries
+          if (Object.keys(tempVariants).length > 0) {
+            formattedVariantPrices = tempVariants;
+          }
+
+          // A5: Set pizzaPrices only when BOTH ny and neap variant keys exist
+          if (rawNy !== undefined && rawNeap !== undefined) {
+            pizzaPrices = { ny: rawNy, neap: rawNeap };
           }
         }
       }

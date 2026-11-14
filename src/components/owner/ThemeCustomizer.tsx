@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { RestaurantTheme, CardStyle } from '@/types/database';
+import { PREDEFINED_THEMES } from '@/lib/themes/predefinedThemes';
 import { Palette, Check } from 'lucide-react';
 
 interface ThemeCustomizerProps {
@@ -9,70 +10,24 @@ interface ThemeCustomizerProps {
   onChange: (updatedTheme: RestaurantTheme) => void;
 }
 
-const PRESET_PALETTES: Array<{
-  id: string;
-  name: string;
-  primary: string;
-  accent: string;
-  background: string;
-  cardStyle: CardStyle;
-  description: string;
-}> = [
-  {
-    id: 'cappuccino',
-    name: 'Cappuccino',
-    primary: '#914C2B',
-    accent: '#B86B3D',
-    background: '#F5EBDD',
-    cardStyle: 'warm_editorial',
-    description: 'Warm cream tones with handcrafted terracotta accents',
-  },
-  {
-    id: 'dark-coffee-luxury',
-    name: 'Dark Coffee Luxury',
-    primary: '#C77A32',
-    accent: '#E4A64A',
-    background: '#120D09',
-    cardStyle: 'modern_dark',
-    description: 'High-end specialty coffee bar with deep espresso and gold',
-  },
-  {
-    id: 'botanical',
-    name: 'Botanical',
-    primary: '#426B45',
-    accent: '#A7B88A',
-    background: '#F1F3E8',
-    cardStyle: 'minimalist',
-    description: 'Organic café with sage and cream botanical accents',
-  },
-  {
-    id: 'minimal-editorial',
-    name: 'Minimal Editorial',
-    primary: '#1A1A1A',
-    accent: '#404040',
-    background: '#FFFFFF',
-    cardStyle: 'minimalist',
-    description: 'Clean modern black & white editorial typography',
-  },
-  {
-    id: 'terracotta-mediterranean',
-    name: 'Terracotta Mediterranean',
-    primary: '#C85A32',
-    accent: '#D97736',
-    background: '#F7F2EA',
-    cardStyle: 'warm_editorial',
-    description: 'Sun-baked clay, warm sand, and olive tones',
-  },
-  {
-    id: 'midnight-blue',
-    name: 'Midnight Blue',
-    primary: '#1E3A5F',
-    accent: '#4A90E2',
-    background: '#0D1B2A',
-    cardStyle: 'modern_dark',
-    description: 'Deep navy night with crisp silver and sky blue',
-  },
-];
+const THEME_CARD_STYLES: Record<string, CardStyle> = {
+  cappuccino: 'warm_editorial',
+  'dark-coffee-luxury': 'modern_dark',
+  botanical: 'minimalist',
+  'minimal-editorial': 'minimalist',
+  'terracotta-mediterranean': 'warm_editorial',
+  'midnight-blue': 'modern_dark',
+};
+
+const PRESET_PALETTES = PREDEFINED_THEMES.map((t) => ({
+  id: t.id,
+  name: t.name,
+  primary: t.colors.primary,
+  accent: t.colors.accent,
+  background: t.colors.background,
+  cardStyle: THEME_CARD_STYLES[t.id] || 'warm_editorial',
+  description: t.description,
+}));
 
 export function ThemeCustomizer({ theme, onChange }: ThemeCustomizerProps) {
   const applyPreset = (preset: (typeof PRESET_PALETTES)[0]) => {
@@ -158,13 +113,13 @@ export function ThemeCustomizer({ theme, onChange }: ThemeCustomizerProps) {
             <input
               type="color"
               value={theme.primary_color}
-              onChange={(e) => onChange({ ...theme, primary_color: e.target.value })}
+              onChange={(e) => onChange({ ...theme, primary_color: e.target.value, theme_id: undefined })}
               className="w-10 h-10 rounded-xl cursor-pointer border border-stone-300 p-0.5 bg-white shadow-xs"
             />
             <input
               type="text"
               value={theme.primary_color}
-              onChange={(e) => onChange({ ...theme, primary_color: e.target.value })}
+              onChange={(e) => onChange({ ...theme, primary_color: e.target.value, theme_id: undefined })}
               className="w-full text-xs font-mono px-3 py-2 bg-white border border-stone-300 rounded-xl uppercase text-stone-800 shadow-xs focus:outline-none focus:ring-1 focus:ring-[#8B4A27]"
             />
           </div>
@@ -178,13 +133,13 @@ export function ThemeCustomizer({ theme, onChange }: ThemeCustomizerProps) {
             <input
               type="color"
               value={theme.accent_color}
-              onChange={(e) => onChange({ ...theme, accent_color: e.target.value })}
+              onChange={(e) => onChange({ ...theme, accent_color: e.target.value, theme_id: undefined })}
               className="w-10 h-10 rounded-xl cursor-pointer border border-stone-300 p-0.5 bg-white shadow-xs"
             />
             <input
               type="text"
               value={theme.accent_color}
-              onChange={(e) => onChange({ ...theme, accent_color: e.target.value })}
+              onChange={(e) => onChange({ ...theme, accent_color: e.target.value, theme_id: undefined })}
               className="w-full text-xs font-mono px-3 py-2 bg-white border border-stone-300 rounded-xl uppercase text-stone-800 shadow-xs focus:outline-none focus:ring-1 focus:ring-[#8B4A27]"
             />
           </div>
@@ -198,13 +153,13 @@ export function ThemeCustomizer({ theme, onChange }: ThemeCustomizerProps) {
             <input
               type="color"
               value={theme.background_color}
-              onChange={(e) => onChange({ ...theme, background_color: e.target.value })}
+              onChange={(e) => onChange({ ...theme, background_color: e.target.value, theme_id: undefined })}
               className="w-10 h-10 rounded-xl cursor-pointer border border-stone-300 p-0.5 bg-white shadow-xs"
             />
             <input
               type="text"
               value={theme.background_color}
-              onChange={(e) => onChange({ ...theme, background_color: e.target.value })}
+              onChange={(e) => onChange({ ...theme, background_color: e.target.value, theme_id: undefined })}
               className="w-full text-xs font-mono px-3 py-2 bg-white border border-stone-300 rounded-xl uppercase text-stone-800 shadow-xs focus:outline-none focus:ring-1 focus:ring-[#8B4A27]"
             />
           </div>

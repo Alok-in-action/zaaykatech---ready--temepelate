@@ -103,8 +103,6 @@ const MenuItemCard = ({ item }: { item: MenuItemType }) => {
 };
 
 const CraftMenuItemCard = ({ item }: { item: MenuItemType }) => {
-
-
     return (
         <div className={`group bg-secondary p-3 sm:p-4 rounded-xl shadow-sm border border-primary/5 hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full ${item._isForcedRectangular ? 'col-span-2 md:col-span-1' : ''}`}>
             <div>
@@ -112,8 +110,20 @@ const CraftMenuItemCard = ({ item }: { item: MenuItemType }) => {
                 <h4 className="font-sans text-sm font-medium break-words leading-snug mb-2">{item.name}</h4>
                 {item.description && <p className="font-sans text-[10px] text-text/70 leading-relaxed mb-2">{item.description}</p>}
             </div>
-            <div className="flex justify-end mt-auto pt-2">
-                <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{item.price}</span>
+            <div className="mt-auto pt-2">
+                {item.variant_prices ? (
+                    <div className="flex flex-wrap gap-1 justify-end">
+                        {Object.entries(item.variant_prices).map(([vName, vPrice]) => (
+                            <span key={vName} className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                                {vName}: {vPrice}
+                            </span>
+                        ))}
+                    </div>
+                ) : item.price ? (
+                    <div className="flex justify-end">
+                        <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{item.price}</span>
+                    </div>
+                ) : null}
             </div>
         </div>
     );
@@ -164,7 +174,7 @@ const SummerEditCard = ({ item }: { item: MenuItemType }) => (
             {item.description && <p className="font-sans text-[10px] text-[#5D4037]/70 leading-relaxed mb-2">{item.description}</p>}
         </div>
         <div className="flex justify-end mt-auto pt-2">
-            <span className="text-xs font-bold text-[#E65100] bg-[#FFB300]/15 px-2 py-0.5 rounded-full">₹{item.price}</span>
+            <span className="text-xs font-bold text-[#E65100] bg-[#FFB300]/15 px-2 py-0.5 rounded-full">{item.price}</span>
         </div>
     </div>
 );
@@ -187,7 +197,7 @@ const MonsoonEditCard = ({ item, withRain = false }: { item: MenuItemType, withR
             {item.description && <p className="font-sans text-[10px] text-[#1565C0]/80 leading-relaxed mb-2">{item.description}</p>}
         </div>
         <div className="flex justify-end mt-auto pt-2 relative z-10">
-            <span className="text-xs font-bold text-[#0D47A1] bg-secondary/40 backdrop-blur-sm px-2 py-0.5 rounded-full">₹{item.price}</span>
+            <span className="text-xs font-bold text-[#0D47A1] bg-secondary/40 backdrop-blur-sm px-2 py-0.5 rounded-full">{item.price}</span>
         </div>
     </div>
 );
@@ -214,7 +224,19 @@ const ColdFrappeItemCard = ({ item }: { item: MenuItemType }) => {
                     <h4 className="font-sans text-sm font-medium text-background leading-snug break-words">{item.name}</h4>
                     {item.description && <p className="text-[10px] text-background/80 mt-1 leading-relaxed">{item.description}</p>}
                 </div>
-                <div className="flex justify-end md:items-center"><span className="text-sm font-bold bg-secondary/25 text-background px-3 py-1 rounded-full whitespace-nowrap">{item.price}</span></div>
+                <div className="flex justify-end md:items-center">
+                    {item.variant_prices ? (
+                        <div className="flex flex-wrap gap-1 justify-end">
+                            {Object.entries(item.variant_prices).map(([vName, vPrice]) => (
+                                <span key={vName} className="text-[10px] font-bold bg-secondary/30 text-background px-2 py-0.5 rounded-md whitespace-nowrap">
+                                    {vName}: {vPrice}
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        <span className="text-sm font-bold bg-secondary/25 text-background px-3 py-1 rounded-full whitespace-nowrap">{item.price}</span>
+                    )}
+                </div>
             </div>
         )
     }
@@ -264,7 +286,19 @@ const PizzaItemCard = ({ item }: { item: MenuItemType }) => {
                         </div>
                     ) : item.price && (
                         <div className="flex justify-end">
-                            <div className="flex justify-end md:items-center"><span className="text-sm font-bold bg-secondary/25 text-background px-3 py-1 rounded-full whitespace-nowrap">{item.price}</span></div>
+                            <div className="flex justify-end md:items-center">
+                    {item.variant_prices ? (
+                        <div className="flex flex-wrap gap-1 justify-end">
+                            {Object.entries(item.variant_prices).map(([vName, vPrice]) => (
+                                <span key={vName} className="text-[10px] font-bold bg-secondary/30 text-background px-2 py-0.5 rounded-md whitespace-nowrap">
+                                    {vName}: {vPrice}
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        <span className="text-sm font-bold bg-secondary/25 text-background px-3 py-1 rounded-full whitespace-nowrap">{item.price}</span>
+                    )}
+                </div>
                         </div>
                     )}
                 </div>
@@ -320,7 +354,19 @@ const BitesItemCard = ({ item }: { item: MenuItemType }) => {
                     <h4 className="font-sans text-sm font-medium text-background leading-snug break-words">{item.name}</h4>
                     {item.description && <p className="text-[10px] text-background/80 mt-1 leading-relaxed">{item.description}</p>}
                 </div>
-                <div className="flex justify-end md:items-center"><span className="text-sm font-bold bg-secondary/25 text-background px-3 py-1 rounded-full whitespace-nowrap">{item.price}</span></div>
+                <div className="flex justify-end md:items-center">
+                    {item.variant_prices ? (
+                        <div className="flex flex-wrap gap-1 justify-end">
+                            {Object.entries(item.variant_prices).map(([vName, vPrice]) => (
+                                <span key={vName} className="text-[10px] font-bold bg-secondary/30 text-background px-2 py-0.5 rounded-md whitespace-nowrap">
+                                    {vName}: {vPrice}
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        <span className="text-sm font-bold bg-secondary/25 text-background px-3 py-1 rounded-full whitespace-nowrap">{item.price}</span>
+                    )}
+                </div>
             </div>
         )
     }
@@ -363,7 +409,19 @@ const ShakeItemCard = ({ item }: { item: MenuItemType }) => {
                     <h4 className="font-sans text-sm font-medium text-background leading-snug break-words">{item.name}</h4>
                     {item.description && <p className="text-[10px] text-background/80 mt-1 leading-relaxed">{item.description}</p>}
                 </div>
-                <div className="flex justify-end md:items-center"><span className="text-sm font-bold bg-secondary/25 text-background px-3 py-1 rounded-full whitespace-nowrap">{item.price}</span></div>
+                <div className="flex justify-end md:items-center">
+                    {item.variant_prices ? (
+                        <div className="flex flex-wrap gap-1 justify-end">
+                            {Object.entries(item.variant_prices).map(([vName, vPrice]) => (
+                                <span key={vName} className="text-[10px] font-bold bg-secondary/30 text-background px-2 py-0.5 rounded-md whitespace-nowrap">
+                                    {vName}: {vPrice}
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        <span className="text-sm font-bold bg-secondary/25 text-background px-3 py-1 rounded-full whitespace-nowrap">{item.price}</span>
+                    )}
+                </div>
             </div>
         )
     }
@@ -406,7 +464,19 @@ const DessertItemCard = ({ item }: { item: MenuItemType }) => {
                     <h4 className="font-sans text-sm font-medium text-background leading-snug break-words">{item.name}</h4>
                     {item.description && <p className="text-[10px] text-background/80 leading-relaxed">{item.description}</p>}
                 </div>
-                <div className="flex justify-end md:items-center"><span className="text-sm font-bold bg-secondary/25 text-background px-3 py-1 rounded-full whitespace-nowrap">{item.price}</span></div>
+                <div className="flex justify-end md:items-center">
+                    {item.variant_prices ? (
+                        <div className="flex flex-wrap gap-1 justify-end">
+                            {Object.entries(item.variant_prices).map(([vName, vPrice]) => (
+                                <span key={vName} className="text-[10px] font-bold bg-secondary/30 text-background px-2 py-0.5 rounded-md whitespace-nowrap">
+                                    {vName}: {vPrice}
+                                </span>
+                            ))}
+                        </div>
+                    ) : (
+                        <span className="text-sm font-bold bg-secondary/25 text-background px-3 py-1 rounded-full whitespace-nowrap">{item.price}</span>
+                    )}
+                </div>
             </div>
         )
     }
@@ -802,6 +872,9 @@ export default function MenuClient({
     useEffect(() => {
         if (!sections.length) return;
 
+        let activeObserver: IntersectionObserver | null = null;
+        let revealObserver: IntersectionObserver | null = null;
+
         // Small delay to ensure DOM has updated with the new sections
         const timeoutId = setTimeout(() => {
             const observerOptions = {
@@ -810,7 +883,7 @@ export default function MenuClient({
                 threshold: 0
             };
 
-            const activeObserver = new IntersectionObserver((entries) => {
+            activeObserver = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         setActiveSection(entry.target.id);
@@ -819,33 +892,27 @@ export default function MenuClient({
             }, observerOptions);
 
             const revealElementsSnapshot = document.querySelectorAll('section[id]');
-            revealElementsSnapshot.forEach(el => activeObserver.observe(el));
+            revealElementsSnapshot.forEach(el => activeObserver?.observe(el));
 
             // Original reveal observer
-            const revealObserver = new IntersectionObserver((entries) => {
+            revealObserver = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         entry.target.classList.add('active');
-                        revealObserver.unobserve(entry.target);
+                        revealObserver?.unobserve(entry.target);
                     }
                 });
             }, { threshold: 0.1 });
 
             const revealElements = document.querySelectorAll('.reveal');
-            revealElements.forEach(el => revealObserver.observe(el));
-
-            // Cleanup function will close over the current elements
-            return () => {
-                revealElementsSnapshot.forEach(el => activeObserver.unobserve(el));
-                revealElements.forEach(el => {
-                    try {
-                        revealObserver.unobserve(el);
-                    } catch (e) { }
-                });
-            };
+            revealElements.forEach(el => revealObserver?.observe(el));
         }, 100);
 
-        return () => clearTimeout(timeoutId);
+        return () => {
+            clearTimeout(timeoutId);
+            activeObserver?.disconnect();
+            revealObserver?.disconnect();
+        };
     }, [sections]);
 
     useEffect(() => {
