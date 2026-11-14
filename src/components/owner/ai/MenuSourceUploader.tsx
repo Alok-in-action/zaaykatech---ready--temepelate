@@ -227,8 +227,9 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
       setStatusMessage('Saving original file to secure vault...');
       setUploadProgress(35);
 
+      let storageUploadSuccessful = false;
       try {
-        await fetch(uploadUrl, {
+        const uploadRes = await fetch(uploadUrl, {
           method: 'PUT',
           body: selectedFile,
           headers: {
@@ -236,9 +237,12 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
           },
           signal: abortControllerRef.current?.signal,
         });
+        if (uploadRes.ok) {
+          storageUploadSuccessful = true;
+        }
       } catch (uploadErr: any) {
         if (uploadErr.name === 'AbortError') throw uploadErr;
-        console.warn('Direct storage PUT failed (likely mock/local mode):', uploadErr);
+        console.warn('Direct storage PUT failed (falling back to base64 payload):', uploadErr);
       }
 
       setStatusMessage(
@@ -248,16 +252,23 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
       );
       setUploadProgress(55);
 
-      const base64Data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const res = reader.result as string;
-          const commaIndex = res.indexOf(',');
-          resolve(commaIndex !== -1 ? res.slice(commaIndex + 1) : res);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(selectedFile);
-      });
+      let base64Data: string | undefined = undefined;
+      // If direct Supabase/R2 storage upload didn't succeed, fall back to base64 payload for files within server limit
+      if (!storageUploadSuccessful) {
+        if (selectedFile.size > 4 * 1024 * 1024) {
+          throw new Error('Upload to storage failed. Please check your network connection and retry.');
+        }
+        base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const res = reader.result as string;
+            const commaIndex = res.indexOf(',');
+            resolve(commaIndex !== -1 ? res.slice(commaIndex + 1) : res);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(selectedFile);
+        });
+      }
 
       setStatusMessage(
         selectedFile.type === 'application/pdf'
@@ -267,7 +278,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
       setUploadProgress(75);
 
       const extractionRes = await extractMenuFromSource(restaurantId, {
-        type: 'direct_base64',
+        type: storageUploadSuccessful ? 'r2_file' : 'direct_base64',
         r2Key: key,
         mimeType: selectedFile.type,
         base64Data,
