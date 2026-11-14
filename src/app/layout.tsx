@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import PWARegister from '../components/PWARegister';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || 'https://zaaykatech.com'),
@@ -74,6 +75,7 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-[#FAF8F5] text-stone-900 selection:bg-[#8B4A27]/20 selection:text-[#8B4A27] min-h-screen flex flex-col">
         <PWARegister />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
