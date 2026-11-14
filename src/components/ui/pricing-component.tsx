@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Calendar, Check, Zap, Star, Layout, ShoppingCart } from "lucide-react";
+import { trackMarketingEvent } from "@/lib/analytics";
 
 const CheckIcon = ({ dark = false }: { dark?: boolean }) => (
     <span
@@ -68,6 +69,7 @@ export default function PricingCards() {
 
                         <a
                             href="/login"
+                            onClick={() => trackMarketingEvent('trial_cta_clicked', { placement: 'pricing' })}
                             className="w-full rounded-xl font-semibold text-sm md:text-base py-3 md:py-4 bg-neutral-900 text-white hover:opacity-90 transition-opacity duration-200 flex items-center justify-center gap-2.5 shadow-[0_4px_18px_-6px_rgba(0,0,0,0.4)] ring-1 ring-inset ring-neutral-900/10"
                         >
                             Start Free Trial
@@ -110,6 +112,7 @@ export default function PricingCards() {
 
                         <a
                             href="/login"
+                            onClick={() => trackMarketingEvent('pricing_cta_clicked', { placement: 'pricing', plan: 'pro_annual' })}
                             className="w-full rounded-xl font-semibold text-sm md:text-base py-3 md:py-4 bg-white text-neutral-900 hover:opacity-90 transition-opacity duration-200 flex items-center justify-center gap-2.5 shadow-[0_4px_18px_-6px_rgba(255,255,255,0.35)] ring-1 ring-inset ring-white/30"
                         >
                             Get Started Today
@@ -154,6 +157,7 @@ export default function PricingCards() {
 
                         <a
                             href="/#contact"
+                            onClick={() => trackMarketingEvent('pricing_cta_clicked', { placement: 'pricing', plan: 'enterprise_chain' })}
                             className="w-full rounded-xl font-semibold text-base py-4 bg-neutral-800 text-white hover:opacity-90 transition-opacity duration-200 flex items-center justify-center gap-2.5 shadow-[0_4px_18px_-6px_rgba(0,0,0,0.3)] ring-1 ring-inset ring-neutral-900/10"
                         >
                             Contact Our Team

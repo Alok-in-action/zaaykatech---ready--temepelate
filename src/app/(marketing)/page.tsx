@@ -30,6 +30,7 @@ import {
 import Footer from '@/components/Footer';
 import { PillBase } from '@/components/ui/3d-adaptive-navigation-bar';
 import { ModeToggle } from '@/components/mode-toggle';
+import { trackMarketingEvent } from '@/lib/analytics';
 import { NavBar } from '@/components/ui/tubelight-navbar';
 import { AnimatedMarqueeHero } from '@/components/ui/hero-3';
 import { FeatureWithImageComparison } from '@/components/ui/feature-with-image-comparison';
@@ -398,6 +399,7 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
                 <Link
                   href="/login"
+                  onClick={() => trackMarketingEvent('trial_cta_clicked', { placement: 'hero' })}
                   className="min-h-[56px] h-14 px-8 py-3.5 w-full sm:w-auto inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground font-semibold text-base shadow-md hover:bg-primary/90 active:scale-[0.98] transition-all"
                 >
                   Start free trial
@@ -405,6 +407,7 @@ export default function Home() {
                 </Link>
                 <a
                   href="#preview"
+                  onClick={() => trackMarketingEvent('demo_clicked', { placement: 'hero' })}
                   className="min-h-[56px] h-14 px-6 py-3.5 w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-border bg-card/60 backdrop-blur-sm text-foreground font-medium text-base hover:bg-accent/40 active:scale-[0.98] transition-all"
                 >
                   See how it works
@@ -412,7 +415,11 @@ export default function Home() {
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Already an owner?{' '}
-                <Link href="/login" className="font-semibold text-foreground underline underline-offset-4 hover:text-primary transition-colors">
+                <Link
+                  href="/login"
+                  onClick={() => trackMarketingEvent('sign_in_clicked', { placement: 'hero' })}
+                  className="font-semibold text-foreground underline underline-offset-4 hover:text-primary transition-colors"
+                >
                   Sign in to dashboard &rarr;
                 </Link>
               </p>
@@ -486,6 +493,7 @@ export default function Home() {
                   <div className="pt-4">
                     <Link
                       href="/login"
+                      onClick={() => trackMarketingEvent('trial_cta_clicked', { placement: 'preview' })}
                       className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow hover:bg-primary/90 transition-all"
                     >
                       Create your digital menu
@@ -712,6 +720,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <Link
                 href="/login"
+                onClick={() => trackMarketingEvent('trial_cta_clicked', { placement: 'footer' })}
                 className="min-h-[52px] h-13 px-8 py-3.5 w-full sm:w-auto inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground font-semibold text-base shadow hover:bg-primary/90 transition-all active:scale-[0.98]"
               >
                 Start free trial
@@ -719,6 +728,7 @@ export default function Home() {
               </Link>
               <Link
                 href="/login"
+                onClick={() => trackMarketingEvent('sign_in_clicked', { placement: 'footer' })}
                 className="min-h-[52px] h-13 px-6 py-3.5 w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-border bg-card text-foreground font-medium text-base hover:bg-accent/40 transition-all active:scale-[0.98]"
               >
                 Sign in to dashboard

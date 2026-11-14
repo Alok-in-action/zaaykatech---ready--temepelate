@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from 'next';
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
 import PWARegister from '../components/PWARegister';
+import AnalyticsPrivacyFilter from '../components/analytics/AnalyticsPrivacyFilter';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || 'https://zaaykatech.com'),
@@ -73,7 +76,10 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth">
       <body className="font-sans antialiased bg-[#FAF8F5] text-stone-900 selection:bg-[#8B4A27]/20 selection:text-[#8B4A27] min-h-screen flex flex-col">
         <PWARegister />
+        <AnalyticsPrivacyFilter />
         {children}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
