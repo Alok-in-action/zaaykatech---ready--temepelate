@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "playwright test",
+    "test": "ALLOW_DEMO_TENANT=true playwright test",
     "postinstall": "patch-package"
   },
   "dependencies": {

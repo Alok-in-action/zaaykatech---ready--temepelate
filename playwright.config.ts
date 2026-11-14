@@ -13,6 +13,9 @@ export default defineConfig({
     port: 3000,
     reuseExistingServer: true,
     timeout: 60000,
+    env: {
+      ALLOW_DEMO_TENANT: 'true',
+    },
   },
   projects: [
     {

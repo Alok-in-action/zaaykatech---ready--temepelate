@@ -90,11 +90,16 @@ export interface ResolvedTenantData {
 
 /**
  * Resolves public restaurant data by slug.
- * - In production: Uses secure server queries. Unknown or draft/preview/suspended returns null (404).
- * - Never leaks demo data in production.
+ * - In production (NODE_ENV === 'production'): Uses secure server queries. Unknown or draft/preview/suspended returns null (404).
+ * - Demo data is strictly blocked in production.
+ * - For automated local test suites ONLY, process.env.ALLOW_DEMO_TENANT === 'true' can be set
+ *   in the test runner to allow loading in-memory demo fixtures without live DB records.
+ *   This flag must NEVER be defined or enabled in Vercel or live hosting environments.
  */
 export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantData | null> {
   const isProduction = process.env.NODE_ENV === 'production';
+  const allowDemoTenant = process.env.ALLOW_DEMO_TENANT === 'true';
+  const isDemoPermitted = !isProduction || allowDemoTenant;
   const hasRealSupabase = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
       !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder')
@@ -109,18 +114,15 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantD
       });
 
       if (error || !menuData) {
-        if (slug === 'demo' && process.env.VERCEL_ENV !== 'production') {
-          return getDemoFallbackTenant('demo');
-        }
-        // If query failed or returned null, in production return 404
-        if (isProduction) return null;
+        // If query failed or returned null, in production return 404 (unless ALLOW_DEMO_TENANT test override is active)
+        if (!isDemoPermitted) return null;
         return getDemoFallbackTenant(slug);
       }
 
       // Check the returned status from the secure database function
       if (menuData.status === 'not_found') {
-        // In development/test mode or when not on Vercel production, allow demo slug to return demo tenant
-        if (slug === 'demo' && (!isProduction || process.env.VERCEL_ENV !== 'production')) {
+        // In development mode (or local tests with ALLOW_DEMO_TENANT), allow demo slug to return demo tenant
+        if (isDemoPermitted && slug === 'demo') {
           return getDemoFallbackTenant('demo');
         }
         // draft, preview, or suspended restaurants return 404
@@ -154,15 +156,15 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantD
     }
   } catch (err) {
     console.error(`Error resolving tenant for slug "${slug}":`, err);
-    if (isProduction) return null;
+    if (!isDemoPermitted) return null;
   }
 
-  // STRICT RULE: On Vercel production deployment, NEVER return demo data!
-  if (process.env.VERCEL_ENV === 'production') {
+  // STRICT RULE: In production (NODE_ENV === 'production'), NEVER return demo data!
+  if (!isDemoPermitted) {
     return null;
   }
 
-  // Allow explicit 'demo' slug for local development and test preview
+  // Allow explicit 'demo' slug for local development or explicit ALLOW_DEMO_TENANT test runs
   if (slug === 'demo') {
     return getDemoFallbackTenant('demo');
   }

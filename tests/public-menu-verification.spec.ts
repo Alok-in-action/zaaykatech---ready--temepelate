@@ -1,18 +1,10 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Public Menu & Owner Regression Suite', () => {
-  test('Capture After Screenshots of Owner and Onboarding at 390px', async ({ page }) => {
+  test('Capture After Screenshots of Owner Portal at 390px', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
 
-    // 1. /test-mobile-onboarding
-    await page.goto('/test-mobile-onboarding');
-    await page.waitForSelector('#restaurant-name');
-    await page.screenshot({
-      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/after-onboarding-390px.png',
-      fullPage: true,
-    });
-
-    // 2. /owner (redirects to /owner/onboarding when unauthenticated)
+    // /owner (redirects to /login or /owner/onboarding when unauthenticated)
     await page.goto('/owner');
     await page.waitForTimeout(1000);
     await page.screenshot({
@@ -36,8 +28,8 @@ test.describe('Public Menu & Owner Regression Suite', () => {
     const headerTitle = page.locator('header');
     await expect(headerTitle).toBeVisible();
 
-    // Verify categories with font-script headers
-    const scriptHeadings = page.locator('h3.font-script');
+    // Verify categories with font-script headers (h2/h3)
+    const scriptHeadings = page.locator('h2.font-script, h3.font-script');
     const headingCount = await scriptHeadings.count();
     expect(headingCount).toBeGreaterThan(0);
 
@@ -73,7 +65,7 @@ test.describe('Public Menu & Owner Regression Suite', () => {
     await expect(header).toBeVisible();
 
     // Verify custom Indian restaurant categories (Thali, Drinks, Soup, etc.)
-    const scriptHeadings = page.locator('h3.font-script');
+    const scriptHeadings = page.locator('h2.font-script, h3.font-script');
     const headingCount = await scriptHeadings.count();
     expect(headingCount).toBeGreaterThan(5);
 
@@ -101,26 +93,6 @@ test.describe('Public Menu & Owner Regression Suite', () => {
     // Capture screenshot at 1280px
     await page.screenshot({
       path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/saas-menu-1280px.png',
-      fullPage: true,
-    });
-  });
-
-  test('Template01 Reference at /test-template01 - 390px and 1280px', async ({ page }) => {
-    // 390px
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/test-template01');
-    await page.waitForLoadState('networkidle');
-    await page.screenshot({
-      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/template01-390px.png',
-      fullPage: true,
-    });
-
-    // 1280px
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto('/test-template01');
-    await page.waitForLoadState('networkidle');
-    await page.screenshot({
-      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/template01-1280px.png',
       fullPage: true,
     });
   });

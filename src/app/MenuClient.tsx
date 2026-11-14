@@ -16,11 +16,23 @@ const MenuItemCard = ({ item }: { item: MenuItemType }) => {
                                 <span className={`block w-2 h-2 rounded-full ${item.is_veg ? 'bg-green-600' : 'bg-red-600'}`}></span>
                             </span>
                         )}
-                        <h4 className="font-sans text-sm font-medium text-background leading-snug break-words">{item.name}</h4>
+                        <h3 className="font-sans text-sm font-medium text-background leading-snug break-words">{item.name}</h3>
                     </div>
                     {item.description && <p className="text-[10px] text-background/80 mt-1">{item.description}</p>}
                 </div>
-                <div className="flex flex-col items-end justify-center">
+                <div className="flex flex-col items-end justify-center gap-2">
+                    {item.image_url && (
+                        <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/20 shrink-0">
+                            <Image
+                                src={item.image_url}
+                                alt={item.name}
+                                fill
+                                loading="lazy"
+                                sizes="48px"
+                                className="object-cover"
+                            />
+                        </div>
+                    )}
                     {item.variant_prices ? (
                         <div className="flex flex-wrap gap-1 justify-end">
                             {Object.entries(item.variant_prices).map(([vName, vPrice]) => (
@@ -45,15 +57,29 @@ const MenuItemCard = ({ item }: { item: MenuItemType }) => {
                         {item.customTag || "Bestseller"}
                     </span>
                 )}
-                <div className="flex items-start gap-1.5 mb-2">
-                    {item.is_veg !== undefined && (
-                        <span className={`inline-block mt-0.5 shrink-0 w-3.5 h-3.5 border p-0.5 rounded-sm ${item.is_veg ? 'border-green-600' : 'border-red-600'}`}>
-                            <span className={`block w-2 h-2 rounded-full ${item.is_veg ? 'bg-green-600' : 'bg-red-600'}`}></span>
-                        </span>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-start gap-1.5 flex-1 min-w-0">
+                        {item.is_veg !== undefined && (
+                            <span className={`inline-block mt-0.5 shrink-0 w-3.5 h-3.5 border p-0.5 rounded-sm ${item.is_veg ? 'border-green-600' : 'border-red-600'}`}>
+                                <span className={`block w-2 h-2 rounded-full ${item.is_veg ? 'bg-green-600' : 'bg-red-600'}`}></span>
+                            </span>
+                        )}
+                        <h3 className="font-sans text-sm font-semibold text-foreground break-words leading-snug">
+                            {item.name}
+                        </h3>
+                    </div>
+                    {item.image_url && (
+                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-lg overflow-hidden bg-primary/5">
+                            <Image
+                                src={item.image_url}
+                                alt={item.name}
+                                fill
+                                loading="lazy"
+                                sizes="56px"
+                                className="object-cover"
+                            />
+                        </div>
                     )}
-                    <h4 className="font-sans text-sm font-medium text-foreground break-words leading-snug">
-                        {item.name}
-                    </h4>
                 </div>
                 {item.description && <p className="font-sans text-[10px] text-text/70 leading-relaxed mb-2">{item.description}</p>}
             </div>
@@ -468,6 +494,56 @@ function getSectionConfig(sectionId: string) {
     return { CardComponent, gridCols };
 }
 
+const LazySection = ({
+    children,
+    isPriority = false,
+    id,
+    title,
+}: {
+    children: React.ReactNode;
+    isPriority?: boolean;
+    id: string;
+    title: string;
+}) => {
+    const [isVisible, setIsVisible] = useState(isPriority);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isPriority || isVisible) return;
+        const el = containerRef.current;
+        if (!el) return;
+
+        if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+            setIsVisible(true);
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    setIsVisible(true);
+                    observer.disconnect();
+                }
+            },
+            { rootMargin: '350px 0px' }
+        );
+
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [isPriority, isVisible]);
+
+    if (isVisible) {
+        return <div id={id} ref={containerRef} className="scroll-mt-24">{children}</div>;
+    }
+
+    return (
+        <div id={id} ref={containerRef} className="scroll-mt-24 min-h-[140px] py-6 my-2 text-center">
+            <h2 className="font-script text-3xl text-primary mb-2 opacity-80">{title}</h2>
+            <div className="h-20 max-w-md mx-auto rounded-xl bg-primary/5 animate-pulse" />
+        </div>
+    );
+};
+
 const SectionComponent = ({ section: originalSection }: { section: MenuSection }) => {
     let currentCell = 0;
     const itemsCount = originalSection.items.length;
@@ -508,7 +584,7 @@ const SectionComponent = ({ section: originalSection }: { section: MenuSection }
                             <span className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-[#E65100]">Limited Season Special</span>
                             <iconify-icon icon="emojione:sun" width="16"></iconify-icon>
                         </div>
-                        <h3 className="font-script text-4xl sm:text-5xl text-[#BF360C] mb-2">{section.title}</h3>
+                        <h2 className="font-script text-4xl sm:text-5xl text-[#BF360C] mb-2">{section.title}</h2>
                         {section.subtitle && <p className="font-sans text-xs text-[#6D4C41]/80 italic max-w-sm mx-auto leading-relaxed">{section.subtitle}</p>}
                     </div>
                     {/* Drinks */}
@@ -552,7 +628,7 @@ const SectionComponent = ({ section: originalSection }: { section: MenuSection }
                             <span className="font-sans text-[10px] font-bold uppercase tracking-[0.2em] text-[#0D47A1]">Monsoon Special</span>
                             <iconify-icon icon="meteocons:rain-fill" width="16" className="text-[#1976D2]"></iconify-icon>
                         </div>
-                        <h3 className="font-script text-4xl sm:text-5xl text-[#0D47A1] mb-2">{section.title}</h3>
+                        <h2 className="font-script text-4xl sm:text-5xl text-[#0D47A1] mb-2">{section.title}</h2>
                         {section.subtitle && <p className="font-sans text-xs text-[#1565C0]/80 italic max-w-sm mx-auto leading-relaxed">{section.subtitle}</p>}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -576,7 +652,7 @@ const SectionComponent = ({ section: originalSection }: { section: MenuSection }
                     )}
                     <div className="flex items-end gap-3 mb-6 px-1">
                         <iconify-icon icon="mdi:fire" className="text-[#D2691E] text-3xl mb-1 opacity-80"></iconify-icon>
-                        <h3 className="font-script text-3xl text-primary">{section.title}</h3>
+                        <h2 className="font-script text-3xl text-primary">{section.title}</h2>
                         <span className="h-px flex-1 bg-primary/20 mb-2"></span>
                         <iconify-icon icon="mdi:fire" className="text-[#D2691E] text-3xl mb-1 opacity-80"></iconify-icon>
                     </div>
@@ -671,7 +747,7 @@ const SectionComponent = ({ section: originalSection }: { section: MenuSection }
                 {section.id === 'ramen-tales' && (
                     <iconify-icon icon="fluent-emoji-high-contrast:chopsticks" className="text-primary text-2xl mb-1 opacity-60"></iconify-icon>
                 )}
-                <h3 className="font-script text-3xl text-primary">{section.title}</h3>
+                <h2 className="font-script text-3xl sm:text-4xl text-primary">{section.title}</h2>
                 <span className="h-px flex-1 bg-primary/20 mb-2"></span>
                 {section.id === 'ramen-tales' && (
                     <iconify-icon icon="fluent-emoji-high-contrast:steaming-bowl" className="text-primary text-2xl mb-1 opacity-60"></iconify-icon>
@@ -910,6 +986,7 @@ export default function MenuClient({
                     <button
                         onClick={() => setIsSearchOpen(true)}
                         className="w-10 h-10 rounded-full border border-primary/20 flex items-center justify-center hover:bg-primary hover:text-background transition-colors reveal active duration-500 delay-100"
+                        aria-label="Search menu items"
                     >
                         <iconify-icon icon="solar:magnifer-linear" width="20"></iconify-icon>
                     </button>
@@ -1171,73 +1248,75 @@ export default function MenuClient({
                         const calzoneSection = sections.find(s => s.id === 'calzone');
 
                         return (
-                            <section key={section.id} id="pizza" className="reveal -mx-4 sm:-mx-6 px-4 sm:px-6 py-8 bg-gradient-to-br from-[#f5e6d3] via-background to-[#ede0d0] rounded-2xl border border-primary/10 shadow-sm">
-                                <div className="max-w-7xl mx-auto space-y-12">
-                                    {/* Pizza Section */}
-                                    <div>
-                                        {section.preheader && (
-                                            <div className="flex items-center justify-center gap-3 mb-2">
-                                                <iconify-icon icon="game-icons:wood-pile" className="text-primary text-lg opacity-70"></iconify-icon>
-                                                <p className="font-sans text-sm font-medium uppercase tracking-widest text-primary">{section.preheader}</p>
-                                                <iconify-icon icon="game-icons:wood-pile" className="text-primary text-lg opacity-70"></iconify-icon>
+                            <LazySection key={section.id} id="pizza" title={section.title} isPriority={index < 2}>
+                                <section id="pizza" className="reveal -mx-4 sm:-mx-6 px-4 sm:px-6 py-8 bg-gradient-to-br from-[#f5e6d3] via-background to-[#ede0d0] rounded-2xl border border-primary/10 shadow-sm">
+                                    <div className="max-w-7xl mx-auto space-y-12">
+                                        {/* Pizza Section */}
+                                        <div>
+                                            {section.preheader && (
+                                                <div className="flex items-center justify-center gap-3 mb-2">
+                                                    <iconify-icon icon="game-icons:wood-pile" className="text-primary text-lg opacity-70"></iconify-icon>
+                                                    <p className="font-sans text-sm font-medium uppercase tracking-widest text-primary">{section.preheader}</p>
+                                                    <iconify-icon icon="game-icons:wood-pile" className="text-primary text-lg opacity-70"></iconify-icon>
+                                                </div>
+                                            )}
+                                            <div className="flex items-end gap-3 mb-6 px-1">
+                                                <iconify-icon icon="mdi:fire" className="text-[#D2691E] text-3xl mb-1 opacity-80"></iconify-icon>
+                                                <h2 className="font-script text-3xl text-primary">{section.title}</h2>
+                                                <span className="h-px flex-1 bg-primary/20 mb-2"></span>
+                                                <iconify-icon icon="mdi:fire" className="text-[#D2691E] text-3xl mb-1 opacity-80"></iconify-icon>
+                                            </div>
+
+                                            <div className="text-center -mt-4 mb-8 max-w-2xl mx-auto bg-secondary/50 p-6 rounded-xl border border-primary/10">
+                                                <p className="font-sans text-sm font-medium uppercase tracking-widest text-primary mb-4">Choice of Base</p>
+                                                <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 text-xs text-[#6B3A20]/80">
+                                                    <div>
+                                                        <h4 className="font-sans font-semibold text-sm text-primary mb-1">NEW YORK STYLE</h4>
+                                                        <p>A thin, hand-tossed crust, soft in the center, crisp at the edge, and perfectly foldable.</p>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-sans font-semibold text-sm text-primary mb-1">NEAPOLITAN</h4>
+                                                        <p>Crafted with long-rested dough, giving you a pillowy centre, crispy edges, and that signature smoky char.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {section.items.map((item, index) => <PizzaItemCard key={`${item.name}-${index}`} item={item} />)}
+                                            </div>
+                                        </div>
+
+                                        {/* Garlic Bread Section */}
+                                        {garlicBreadSection && (
+                                            <div id="garlic-bread">
+                                                <div className="flex items-end gap-3 mb-6 px-1">
+                                                    <h2 className="font-script text-3xl text-primary">{garlicBreadSection.title}</h2>
+                                                    <span className="h-px flex-1 bg-primary/20 mb-2"></span>
+                                                </div>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                    {garlicBreadSection.items.map((item, index) => <MenuItemCard key={`${item.name}-${index}`} item={item} />)}
+                                                </div>
                                             </div>
                                         )}
-                                        <div className="flex items-end gap-3 mb-6 px-1">
-                                            <iconify-icon icon="mdi:fire" className="text-[#D2691E] text-3xl mb-1 opacity-80"></iconify-icon>
-                                            <h3 className="font-script text-3xl text-primary">{section.title}</h3>
-                                            <span className="h-px flex-1 bg-primary/20 mb-2"></span>
-                                            <iconify-icon icon="mdi:fire" className="text-[#D2691E] text-3xl mb-1 opacity-80"></iconify-icon>
-                                        </div>
 
-                                        <div className="text-center -mt-4 mb-8 max-w-2xl mx-auto bg-secondary/50 p-6 rounded-xl border border-primary/10">
-                                            <p className="font-sans text-sm font-medium uppercase tracking-widest text-primary mb-4">Choice of Base</p>
-                                            <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 text-xs text-[#6B3A20]/80">
-                                                <div>
-                                                    <h4 className="font-sans font-semibold text-sm text-primary mb-1">NEW YORK STYLE</h4>
-                                                    <p>A thin, hand-tossed crust, soft in the center, crisp at the edge, and perfectly foldable.</p>
+                                        {/* Calzone Section */}
+                                        {calzoneSection && (
+                                            <div id="calzone">
+                                                <div className="flex items-end gap-3 mb-6 px-1">
+                                                    <h2 className="font-script text-3xl text-primary">{calzoneSection.title}</h2>
+                                                    <span className="h-px flex-1 bg-primary/20 mb-2"></span>
                                                 </div>
-                                                <div>
-                                                    <h4 className="font-sans font-semibold text-sm text-primary mb-1">NEAPOLITAN</h4>
-                                                    <p>Crafted with long-rested dough, giving you a pillowy centre, crispy edges, and that signature smoky char.</p>
+                                                {calzoneSection.subtitle && (
+                                                    <p className="font-sans text-xs text-center text-[#6B3A20]/80 italic -mt-4 mb-6 max-w-lg mx-auto whitespace-pre-line">{calzoneSection.subtitle}</p>
+                                                )}
+                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                    {calzoneSection.items.map((item, index) => <MenuItemCard key={`${item.name}-${index}`} item={item} />)}
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            {section.items.map((item, index) => <PizzaItemCard key={`${item.name}-${index}`} item={item} />)}
-                                        </div>
+                                        )}
                                     </div>
-
-                                    {/* Garlic Bread Section */}
-                                    {garlicBreadSection && (
-                                        <div id="garlic-bread">
-                                            <div className="flex items-end gap-3 mb-6 px-1">
-                                                <h3 className="font-script text-3xl text-primary">{garlicBreadSection.title}</h3>
-                                                <span className="h-px flex-1 bg-primary/20 mb-2"></span>
-                                            </div>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                                {garlicBreadSection.items.map((item, index) => <MenuItemCard key={`${item.name}-${index}`} item={item} />)}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Calzone Section */}
-                                    {calzoneSection && (
-                                        <div id="calzone">
-                                            <div className="flex items-end gap-3 mb-6 px-1">
-                                                <h3 className="font-script text-3xl text-primary">{calzoneSection.title}</h3>
-                                                <span className="h-px flex-1 bg-primary/20 mb-2"></span>
-                                            </div>
-                                            {calzoneSection.subtitle && (
-                                                <p className="font-sans text-xs text-center text-[#6B3A20]/80 italic -mt-4 mb-6 max-w-lg mx-auto whitespace-pre-line">{calzoneSection.subtitle}</p>
-                                            )}
-                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                                {calzoneSection.items.map((item, index) => <MenuItemCard key={`${item.name}-${index}`} item={item} />)}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
+                                </section>
+                            </LazySection>
                         );
                     }
 
@@ -1246,7 +1325,11 @@ export default function MenuClient({
                         return null;
                     }
 
-                    return <SectionComponent key={section.id} section={section} />;
+                    return (
+                        <LazySection key={section.id} id={section.id} title={section.title} isPriority={index < 2}>
+                            <SectionComponent section={section} />
+                        </LazySection>
+                    );
                 })}
                 <div className="max-w-7xl mx-auto py-4 text-center reveal">
                     <p className="font-sans text-[10px] sm:text-xs font-medium text-primary bg-primary/5 py-3 px-6 rounded-xl inline-block border border-primary/10">Prices are exclusive of GST. Applicable GST will be added to your bill.</p>

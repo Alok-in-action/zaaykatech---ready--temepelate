@@ -25,28 +25,47 @@ export function adaptDatabaseToTemplateMenu(
   if (savedThemeId) {
     const found = PREDEFINED_THEMES.find((t) => t.id === savedThemeId);
     if (found) baseTheme = found;
-  } else if (restaurant.theme?.primary_color) {
-    // Check if primary and background match any predefined theme
-    const matched = PREDEFINED_THEMES.find(
-      (t) =>
-        t.colors.primary.toLowerCase() === restaurant.theme.primary_color.toLowerCase() &&
-        t.colors.background.toLowerCase() === restaurant.theme.background_color.toLowerCase()
-    );
-    if (matched) {
-      baseTheme = matched;
-    } else {
-      // Build custom theme based on Cappuccino
-      baseTheme = {
-        ...defaultTheme,
-        id: 'custom',
-        name: 'Custom',
-        colors: {
-          ...defaultTheme.colors,
-          primary: restaurant.theme.primary_color || defaultTheme.colors.primary,
-          accent: restaurant.theme.accent_color || defaultTheme.colors.accent,
-          background: restaurant.theme.background_color || defaultTheme.colors.background,
-        },
-      };
+  }
+
+  // If no predefined theme was matched by id, inspect custom theme color properties
+  if (baseTheme === defaultTheme && restaurant.theme && typeof restaurant.theme === 'object') {
+    const rawPrimary = restaurant.theme.primary_color?.trim();
+    const rawAccent = restaurant.theme.accent_color?.trim();
+    const rawBackground = restaurant.theme.background_color?.trim();
+
+    const hasAnyCustomColor = Boolean(rawPrimary || rawAccent || rawBackground);
+
+    if (hasAnyCustomColor) {
+      // Check if primary and background match an existing predefined theme exactly
+      const matched = PREDEFINED_THEMES.find(
+        (t) =>
+          rawPrimary &&
+          rawBackground &&
+          t.colors.primary.toLowerCase() === rawPrimary.toLowerCase() &&
+          t.colors.background.toLowerCase() === rawBackground.toLowerCase()
+      );
+
+      if (matched) {
+        baseTheme = matched;
+      } else {
+        // Build custom theme: cleanly fill any missing color tokens from default Cappuccino palette
+        baseTheme = {
+          ...defaultTheme,
+          id: 'custom',
+          name: 'Custom',
+          colors: {
+            ...defaultTheme.colors,
+            primary: rawPrimary || defaultTheme.colors.primary,
+            accent: rawAccent || defaultTheme.colors.accent,
+            background: rawBackground || defaultTheme.colors.background,
+            surface: (restaurant.theme as any)?.surface_color?.trim() || defaultTheme.colors.surface,
+            text: (restaurant.theme as any)?.text_color?.trim() || defaultTheme.colors.text,
+            muted: (restaurant.theme as any)?.muted_color?.trim() || defaultTheme.colors.muted,
+            border: (restaurant.theme as any)?.border_color?.trim() || defaultTheme.colors.border,
+            secondary: (restaurant.theme as any)?.secondary_color?.trim() || defaultTheme.colors.secondary,
+          },
+        };
+      }
     }
   }
 
