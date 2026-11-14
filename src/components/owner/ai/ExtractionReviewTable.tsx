@@ -647,7 +647,7 @@ export function ExtractionReviewTable({
                                     )
                                   }
                                   placeholder="Dish title"
-                                  className="h-8 font-medium text-sm flex-1 min-w-[180px] bg-background"
+                                  className="h-8 font-medium text-sm flex-1 min-w-[120px] bg-background"
                                 />
 
                                 {/* Confidence Score Badge */}
@@ -695,7 +695,7 @@ export function ExtractionReviewTable({
                           </div>
 
                           {/* Pricing & Controls */}
-                          <div className="flex flex-wrap items-center gap-3 self-end lg:self-center pl-7 lg:pl-0">
+                          <div className="flex flex-wrap items-center gap-2 self-start sm:self-end lg:self-center pl-7 lg:pl-0 w-full sm:w-auto">
                             {/* Pricing Mode Controls */}
                             {item.pricingMode === 'single' ? (
                               <div className="flex items-center gap-1.5">
@@ -818,19 +818,19 @@ export function ExtractionReviewTable({
       </div>
 
       {/* FOOTER ACTIONS */}
-      <div className="flex items-center justify-between pt-4 border-t border-border">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-border">
+        <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto rounded-xl">
           Cancel & Upload Again
         </Button>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <span className="text-xs text-muted-foreground text-center sm:text-left">
             {selectedItemsCount} approved dishes will be added to your menu
           </span>
           <Button
             type="button"
             onClick={() => setCommitModalOpen(true)}
             disabled={selectedItemsCount === 0}
-            className="flex items-center gap-2"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl"
           >
             <span>Commit Approved Menu</span>
             <ArrowRight className="h-4 w-4" />

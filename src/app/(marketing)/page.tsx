@@ -242,7 +242,7 @@ const circularItems = [
     image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=400&fit=crop"
   },
   {
-    text: "DIGITAL ORDERS",
+    text: "DIGITAL MENUS",
     image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=400&fit=crop"
   },
   {
@@ -259,14 +259,14 @@ const morphingTitles = [
   "Smart QR Menu",
   "Digital Menu System",
   "Instant Menu Access",
-  "Scan & Order",
+  "Scan & Browse",
   "Contactless Dining",
   "Smart Restaurant Tech",
   "Modern Menu Experience",
   "QR Powered Menu",
   "Menu Made Digital",
   "Next-Gen Menus",
-  "Scan. Choose. Order.",
+  "Scan. Choose. Dine.",
   "Menus, But Smarter",
   "Dining Goes Digital",
   "Your Menu, Reimagined",
@@ -303,7 +303,7 @@ export default function Home() {
         <AnimatedMarqueeHero
           tagline="THE FUTURE OF DINING IS HERE"
           title={morphingTitles}
-          description="Elevate your dining experience with smart, interactive QR menus and seamless mobile ordering. ZaaykaTech helps you serve more customers, faster."
+          description="Elevate your dining experience with smart, interactive QR menus and seamless contactless dining. ZaaykaTech helps you serve more customers, faster."
           images={DEMO_IMAGES}
           imageLinks={DEMO_IMAGE_LINKS}
         />

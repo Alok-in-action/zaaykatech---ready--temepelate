@@ -334,22 +334,22 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
           }}
           className="w-full"
         >
-          <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="image" className="flex items-center gap-2">
-              <ImageIcon className="h-4 w-4" />
-              <span>Image (Photo)</span>
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full h-auto p-1 gap-1.5 bg-neutral-100 rounded-xl">
+            <TabsTrigger value="image" className="flex items-center justify-center gap-1.5 py-2 text-xs sm:text-sm">
+              <ImageIcon className="h-4 w-4 shrink-0" />
+              <span className="truncate">Photo / Image</span>
             </TabsTrigger>
-            <TabsTrigger value="pdf" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              <span>PDF Document</span>
+            <TabsTrigger value="pdf" className="flex items-center justify-center gap-1.5 py-2 text-xs sm:text-sm">
+              <FileText className="h-4 w-4 shrink-0" />
+              <span className="truncate">PDF Document</span>
             </TabsTrigger>
-            <TabsTrigger value="text" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              <span>Pasted Text</span>
+            <TabsTrigger value="text" className="flex items-center justify-center gap-1.5 py-2 text-xs sm:text-sm">
+              <FileText className="h-4 w-4 shrink-0" />
+              <span className="truncate">Pasted Text</span>
             </TabsTrigger>
-            <TabsTrigger value="csv" className="flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4" />
-              <span>CSV File</span>
+            <TabsTrigger value="csv" className="flex items-center justify-center gap-1.5 py-2 text-xs sm:text-sm">
+              <FileSpreadsheet className="h-4 w-4 shrink-0" />
+              <span className="truncate">CSV File</span>
             </TabsTrigger>
           </TabsList>
 
@@ -601,7 +601,7 @@ Dal Makhani - Slow cooked black lentils - ₹220`}
         )}
 
         {/* ACTIONS */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-2">
           <Button
             type="button"
             onClick={handleStartExtraction}
@@ -610,7 +610,7 @@ Dal Makhani - Slow cooked black lentils - ₹220`}
               (activeTab === 'text' && !pastedText.trim()) ||
               (activeTab !== 'text' && !selectedFile)
             }
-            className="flex items-center gap-2"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl"
           >
             {isProcessing ? (
               <>

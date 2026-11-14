@@ -83,7 +83,7 @@ test.describe('Marketing Website Integration Suite', () => {
     }
 
     // Check Pricing Card CTA
-    const pricingCta = page.locator('a:has-text("Start My QR Menu")').first();
+    const pricingCta = page.locator('a:has-text("Start Free Trial")').first();
     await expect(pricingCta).toHaveAttribute('href', '/login');
 
     const proCta = page.locator('a:has-text("Get Started Today")').first();

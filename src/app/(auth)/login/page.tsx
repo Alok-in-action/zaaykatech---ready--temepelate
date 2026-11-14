@@ -48,31 +48,31 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] flex flex-col justify-center items-center px-4 py-12 selection:bg-[#8B4A27]/20 selection:text-[#8B4A27]">
-      <div className="w-full max-w-md bg-white rounded-3xl p-8 sm:p-10 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.02)] border border-black/[0.06] transition-all">
+    <div className="min-h-screen bg-[#FAF8F5] flex flex-col justify-center items-center px-4 py-12 selection:bg-neutral-900/10 selection:text-neutral-900 font-sans">
+      <div className="w-full max-w-md bg-white rounded-3xl p-8 sm:p-10 shadow-[0_12px_40px_-15px_rgba(0,0,0,0.08)] border border-neutral-200/80 transition-all">
         {/* Brand Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block group">
-            <span className="font-serif text-3xl font-extrabold tracking-tight text-[#8B4A27] transition-transform duration-200 group-hover:scale-[1.02]">
-              Zaayka<span className="text-[#D95B16]">Tech</span>
+            <span className="font-headline text-3xl font-extrabold tracking-tight text-neutral-900 transition-transform duration-200 group-hover:scale-[1.02]">
+              Zaayka<span className="text-neutral-500">Tech</span>
             </span>
           </Link>
-          <h1 className="font-serif text-2xl font-bold text-stone-900 mt-4 tracking-tight">
+          <h1 className="font-headline text-2xl font-bold text-neutral-900 mt-4 tracking-tight">
             Restaurant Owner Portal
           </h1>
-          <p className="text-xs text-stone-500 mt-2 leading-relaxed">
+          <p className="text-xs text-neutral-500 mt-2 leading-relaxed">
             Manage your digital menu, customize branding, download QR stickers, and track scans in real time.
           </p>
         </div>
 
         {/* 24-hr trial badge */}
-        <div className="mb-6 px-3.5 py-2 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center gap-2.5 text-xs text-amber-950 font-medium">
+        <div className="mb-6 px-3.5 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-2.5 text-xs text-amber-950 font-medium">
           <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
           <span>Includes 24-Hour Free Full-Access Trial</span>
         </div>
 
         {errorMsg && (
-          <div className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl">
+          <div className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
             {errorMsg}
           </div>
         )}
@@ -81,7 +81,7 @@ export default function LoginPage() {
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-white border border-stone-300/80 rounded-2xl shadow-2xs text-xs sm:text-sm font-semibold text-stone-700 hover:bg-stone-50 hover:border-stone-400 active:scale-[0.975] transition-all disabled:opacity-60 cursor-pointer"
+          className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-white border border-neutral-300 rounded-xl shadow-xs text-xs sm:text-sm font-semibold text-neutral-800 hover:bg-neutral-50 hover:border-neutral-400 active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
         >
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin text-stone-500" />
@@ -119,7 +119,7 @@ export default function LoginPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Home</span>
           </Link>
-          <Link href="/r/demo" className="text-[#8B4A27] font-semibold hover:underline">
+          <Link href="/r/demo" className="text-neutral-900 font-semibold hover:underline">
             View Live Demo Menu →
           </Link>
         </div>

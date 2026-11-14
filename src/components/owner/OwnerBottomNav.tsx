@@ -59,13 +59,13 @@ export function OwnerBottomNav({ isOnboarding }: OwnerBottomNavProps) {
               href={item.href}
               className={`min-h-[48px] flex flex-col items-center justify-center py-1 px-2 rounded-xl text-center transition-all active:scale-[0.97] touch-manipulation cursor-pointer ${
                 item.isActive
-                  ? 'text-[#8B4A27] font-bold bg-[#8B4A27]/8'
-                  : 'text-stone-500 hover:text-stone-800 font-medium'
+                  ? 'text-neutral-900 font-bold bg-neutral-100'
+                  : 'text-neutral-500 hover:text-neutral-800 font-medium'
               }`}
             >
               <Icon
                 className={`w-5 h-5 mb-0.5 transition-transform ${
-                  item.isActive ? 'scale-110 text-[#8B4A27]' : 'text-stone-400'
+                  item.isActive ? 'scale-110 text-neutral-900' : 'text-neutral-400'
                 }`}
               />
               <span className="text-[11px] leading-tight tracking-tight">{item.label}</span>

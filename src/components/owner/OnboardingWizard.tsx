@@ -599,9 +599,9 @@ export function OnboardingWizard({
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full h-1.5 bg-stone-200/80 rounded-full overflow-hidden">
+        <div className="w-full h-1.5 bg-neutral-200/80 rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#8B4A27] transition-all duration-300 ease-out"
+            className="h-full bg-neutral-900 transition-all duration-300 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -1426,7 +1426,7 @@ export function OnboardingWizard({
 
               <Link
                 href="/owner"
-                className="w-full min-h-[50px] px-4 py-2 bg-[#8B4A27] hover:bg-[#743c1e] text-white font-semibold text-sm rounded-xl transition-all flex items-center justify-center gap-2 shadow-xs mt-2"
+                className="w-full min-h-[50px] px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-sm rounded-xl transition-all flex items-center justify-center gap-2 shadow-xs mt-2"
               >
                 {t.step5.live.goToDashboard}
                 <ArrowRight className="w-4 h-4" />
@@ -1447,7 +1447,7 @@ export function OnboardingWizard({
       {/* ---------------- Bottom Bar: Navigation Actions ---------------- */}
       {subStep !== '5b' && (
         <div
-          className="w-full pt-3 bg-[#FAF8F5]/95 backdrop-blur-md sticky bottom-0 z-30 border-t border-stone-200/80 mt-auto"
+          className="w-full pt-3 bg-[#FAF8F5]/95 backdrop-blur-md sticky bottom-0 z-30 border-t border-neutral-200/80 mt-auto"
           style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
         >
           <div className="flex flex-col gap-2">
@@ -1457,7 +1457,7 @@ export function OnboardingWizard({
                 type="button"
                 onClick={handleStep1aContinue}
                 disabled={loading}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : t.navigation.continue}
                 {!loading && <ArrowRight className="w-5 h-5" />}
@@ -1468,7 +1468,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleStep1bContinue}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {t.navigation.continue}
                 <ArrowRight className="w-5 h-5" />
@@ -1479,7 +1479,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleStep1cContinue}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {t.navigation.continue}
                 <ArrowRight className="w-5 h-5" />
@@ -1490,7 +1490,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleStep1dContinue}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {t.navigation.continue}
                 <ArrowRight className="w-5 h-5" />
@@ -1502,7 +1502,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2aContinue}
-                  className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {t.navigation.continue}
                   <ArrowRight className="w-5 h-5" />
@@ -1510,7 +1510,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2aContinue}
-                  className="text-sm font-medium text-stone-500 hover:text-stone-800 active:scale-[0.97] touch-manipulation py-1 text-center cursor-pointer"
+                  className="text-sm font-medium text-neutral-500 hover:text-neutral-800 active:scale-[0.98] touch-manipulation py-1 text-center cursor-pointer"
                 >
                   {t.navigation.skip}
                 </button>
@@ -1522,7 +1522,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2bContinue}
-                  className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {t.navigation.continue}
                   <ArrowRight className="w-5 h-5" />
@@ -1530,7 +1530,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2bContinue}
-                  className="text-sm font-medium text-stone-500 hover:text-stone-800 active:scale-[0.97] touch-manipulation py-1 text-center cursor-pointer"
+                  className="text-sm font-medium text-neutral-500 hover:text-neutral-800 active:scale-[0.98] touch-manipulation py-1 text-center cursor-pointer"
                 >
                   {t.navigation.skip}
                 </button>
@@ -1542,7 +1542,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2cContinue}
-                  className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {t.navigation.continue}
                   <ArrowRight className="w-5 h-5" />
@@ -1550,7 +1550,7 @@ export function OnboardingWizard({
                 <button
                   type="button"
                   onClick={handleStep2cContinue}
-                  className="text-sm font-medium text-stone-500 hover:text-stone-800 active:scale-[0.97] touch-manipulation py-1 text-center cursor-pointer"
+                  className="text-sm font-medium text-neutral-500 hover:text-neutral-800 active:scale-[0.98] touch-manipulation py-1 text-center cursor-pointer"
                 >
                   {t.navigation.skip}
                 </button>
@@ -1562,7 +1562,7 @@ export function OnboardingWizard({
                 type="button"
                 onClick={handleStep3aContinue}
                 disabled={loading}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : t.navigation.continue}
                 {!loading && <ArrowRight className="w-5 h-5" />}
@@ -1574,7 +1574,7 @@ export function OnboardingWizard({
                 type="button"
                 onClick={handleStep3bContinue}
                 disabled={loading}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Add Dish & Continue'}
                 {!loading && <ArrowRight className="w-5 h-5" />}
@@ -1591,7 +1591,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleStep4Continue}
-                className="w-full min-h-[56px] text-lg font-semibold bg-[#8B4A27] hover:bg-[#743c1e] active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {t.step4.review.continueToGoLive}
                 <ArrowRight className="w-5 h-5" />
@@ -1603,7 +1603,7 @@ export function OnboardingWizard({
                 type="button"
                 onClick={handlePublish}
                 disabled={loading}
-                className="w-full min-h-[56px] text-lg font-semibold bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] touch-manipulation text-white rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[56px] text-lg font-semibold bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : t.navigation.goLive}
                 {!loading && <Sparkles className="w-5 h-5" />}
