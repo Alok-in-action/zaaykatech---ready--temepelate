@@ -226,14 +226,22 @@ export async function extractMenuFromSource(
       let fileBuffer: Buffer | null = null;
       let effectiveMime = source.mimeType || 'image/jpeg';
 
-      if (source.type === 'direct_base64' && source.base64Data) {
-        fileBuffer = Buffer.from(source.base64Data, 'base64');
-      } else if (source.type === 'r2_file' && source.r2Key) {
-        const r2Obj = await getR2Object(source.r2Key);
-        if (r2Obj) {
-          fileBuffer = r2Obj.buffer;
-          effectiveMime = r2Obj.contentType;
+      // 1. Try fetching from secure storage first if r2Key is provided
+      if (source.r2Key) {
+        try {
+          const r2Obj = await getR2Object(source.r2Key);
+          if (r2Obj?.buffer && r2Obj.buffer.length > 0) {
+            fileBuffer = r2Obj.buffer;
+            effectiveMime = r2Obj.contentType || effectiveMime;
+          }
+        } catch (storageErr) {
+          console.warn('Storage buffer fetch failed, falling back to direct base64:', storageErr);
         }
+      }
+
+      // 2. Fall back to direct base64 payload
+      if (!fileBuffer && source.base64Data) {
+        fileBuffer = Buffer.from(source.base64Data, 'base64');
       }
 
       if (!fileBuffer) {

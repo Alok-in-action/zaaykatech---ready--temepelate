@@ -398,6 +398,18 @@ export function ExtractionReviewTable({
         throw new Error('Please select at least one dish to import.');
       }
 
+      // Preserve uncertain results for review: do not allow committing items with uncertain/zero prices or missing variants
+      for (const cat of commitCategories) {
+        for (const item of cat.items) {
+          if (item.pricingMode === 'single' && (!item.pricePaise || item.pricePaise <= 0)) {
+            throw new Error(`Item "${item.name}" in category "${cat.name}" has an uncertain price (₹0). Please edit and set a price before saving.`);
+          }
+          if (item.pricingMode === 'variants' && (!item.variantPrices || Object.keys(item.variantPrices).length === 0)) {
+            throw new Error(`Item "${item.name}" in category "${cat.name}" has no variant prices configured. Please add variant prices or switch to a single price before saving.`);
+          }
+        }
+      }
+
       const payload: CommitMenuPayload = {
         restaurantId,
         categories: commitCategories,

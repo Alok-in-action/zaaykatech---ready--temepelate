@@ -3,6 +3,11 @@ import withBundleAnalyzer from '@next/bundle-analyzer';
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['sharp', 'pdf-parse', 'tesseract.js'],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
   async redirects() {
     return [
       {

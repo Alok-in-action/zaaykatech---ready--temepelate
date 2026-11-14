@@ -1,10 +1,31 @@
 import '@/lib/polyfills/dommatrix';
+import os from 'node:os';
 
 export interface OCRExtractionResult {
   text: string;
   confidence: number;
   lines: Array<{ text: string; confidence: number }>;
   isScannedPdf?: boolean;
+}
+
+/**
+ * Executes a promise with a bounded timeout, rejecting with a user-friendly error.
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operationName: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(
+        new Error(
+          `${operationName} timed out after ${Math.round(timeoutMs / 1000)} seconds. Please upload a smaller file or paste your menu text directly.`
+        )
+      );
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
 }
 
 /**
@@ -33,113 +54,194 @@ export async function preprocessImageForOCR(buffer: Buffer): Promise<Buffer> {
 }
 
 /**
- * Extracts raw text and line-level confidence from an image using Tesseract.js.
+ * Creates and initializes a Tesseract worker with cachePath configured to os.tmpdir().
+ * This prevents EROFS (Read-only file system) errors on Vercel and serverless platforms.
  */
-export async function extractTextFromImage(buffer: Buffer): Promise<OCRExtractionResult> {
-  const processedBuffer = await preprocessImageForOCR(buffer);
+export async function createOCRWorker(logger?: (m: any) => void) {
+  const tesseractModule = await import('tesseract.js');
+  const { createWorker } = tesseractModule.default || tesseractModule;
 
-  try {
-    const tesseractModule = await import('tesseract.js');
-    const Tesseract = tesseractModule.default || tesseractModule;
-
-    const { data } = await Tesseract.recognize(processedBuffer, 'eng');
-
-    const lines: Array<{ text: string; confidence: number }> = [];
-    const rawLines = (data as any)?.lines;
-    if (rawLines && Array.isArray(rawLines)) {
-      for (const line of rawLines) {
-        const cleanLine = typeof line.text === 'string' ? line.text.trim() : '';
-        if (cleanLine.length > 0) {
-          lines.push({
-            text: cleanLine,
-            confidence: Math.max(0, Math.min(1, (line.confidence || 0) / 100)),
-          });
-        }
-      }
-    }
-
-    const overallConfidence = Math.max(0, Math.min(1, (data.confidence || 0) / 100));
-
-    return {
-      text: data.text || '',
-      confidence: overallConfidence,
-      lines,
-    };
-  } catch (err: any) {
-    console.error('Tesseract OCR error:', err);
-    throw new Error(`OCR processing failed: ${err.message || 'Unable to scan document'}`);
+  const options: Record<string, any> = {
+    cachePath: os.tmpdir(),
+  };
+  if (typeof logger === 'function') {
+    options.logger = logger;
   }
+
+  return await createWorker('eng', 1, options);
 }
 
 /**
- * Extracts text from a PDF buffer.
- * - First attempts fast, high-accuracy selectable text extraction via pdf-parse.
- * - If selectable text is empty or too short (scanned PDF), renders/extracts image and runs OCR.
+ * Extracts raw text and line-level confidence from an image using Tesseract.js.
+ * Can optionally accept an existing worker to reuse across multiple pages/images.
  */
-export async function extractTextFromPdf(buffer: Buffer): Promise<OCRExtractionResult> {
-  let selectableText = '';
-  let isScanned = false;
+export async function extractTextFromImage(
+  buffer: Buffer,
+  existingWorker?: any,
+  options: { timeoutMs?: number } = {}
+): Promise<OCRExtractionResult> {
+  const timeoutMs = options.timeoutMs || 35000;
+  const processedBuffer = await preprocessImageForOCR(buffer);
 
-  try {
-    const pdfParseModule = (await import('pdf-parse')) as any;
-    const PDFParse = pdfParseModule.PDFParse || pdfParseModule.default?.PDFParse || pdfParseModule.default || pdfParseModule;
+  let worker = existingWorker;
+  const shouldTerminate = !existingWorker;
 
-    const parser = new PDFParse({ data: buffer });
-    const textOutput = await parser.getText();
-    await parser.destroy();
+  const runOCR = async (): Promise<OCRExtractionResult> => {
+    try {
+      if (!worker) {
+        worker = await createOCRWorker();
+      }
 
-    selectableText = typeof textOutput === 'string' ? textOutput : (textOutput as any)?.text || '';
-  } catch (pdfErr) {
-    console.warn('pdf-parse selectable text extraction failed or encrypted:', pdfErr);
-  }
+      const { data } = await worker.recognize(processedBuffer);
+      const overallConfidence = Math.max(0, Math.min(1, (data.confidence || 0) / 100));
 
-  // If selectable text contains sufficient content (e.g. > 40 alphanumeric characters)
-  const alphanumericCount = (selectableText.match(/[a-zA-Z0-9]/g) || []).length;
-  if (alphanumericCount > 40) {
-    const lines = selectableText
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0)
-      .map((text) => ({ text, confidence: 0.95 }));
+      const rawText = data.text || '';
+      const lines: Array<{ text: string; confidence: number }> = rawText
+        .split(/\r?\n/)
+        .map((l: string) => l.trim())
+        .filter((l: string) => l.length > 0)
+        .map((text: string) => ({
+          text,
+          confidence: overallConfidence,
+        }));
 
-    return {
-      text: selectableText,
-      confidence: 0.95,
-      lines,
-      isScannedPdf: false,
-    };
-  }
-
-  // Otherwise, fallback: scanned PDF without selectable text layer
-  isScanned = true;
-  console.log('PDF contains minimal selectable text; falling back to OCR on rendered/embedded images...');
-
-  try {
-    const pdfParseModule = (await import('pdf-parse')) as any;
-    const PDFParse = pdfParseModule.PDFParse || pdfParseModule.default?.PDFParse || pdfParseModule.default || pdfParseModule;
-
-    const parser = new PDFParse({ data: buffer });
-    const screenshot = (await parser.getScreenshot().catch(() => null)) as any;
-    await parser.destroy();
-
-    if (screenshot && (screenshot.data || screenshot.pages?.[0]?.data)) {
-      const rawData = screenshot.data || screenshot.pages[0].data;
-      const imgBuffer = Buffer.from(rawData);
-      const ocrResult = await extractTextFromImage(imgBuffer);
       return {
-        ...ocrResult,
-        isScannedPdf: true,
+        text: rawText,
+        confidence: overallConfidence,
+        lines,
       };
+    } finally {
+      if (shouldTerminate && worker) {
+        await worker.terminate().catch((err: any) => {
+          console.warn('Error terminating OCR worker:', err);
+        });
+      }
     }
-  } catch (scannedErr) {
-    console.warn('Scanned PDF screenshot extraction failed:', scannedErr);
-  }
-
-  // If text is still empty, return low-confidence fallback
-  return {
-    text: selectableText || '',
-    confidence: selectableText.length > 10 ? 0.4 : 0.1,
-    lines: [],
-    isScannedPdf: isScanned,
   };
+
+  return withTimeout(runOCR(), timeoutMs, 'Image OCR');
+}
+
+/**
+ * Extracts text from a PDF buffer using a smart hybrid per-page strategy:
+ * 1. Inspects each page's selectable text layer via pdf-parse.
+ * 2. If a page has usable selectable text (>= 30 alphanumeric characters), extracts it directly without OCR.
+ * 3. If a page is scanned / lacks selectable text, extracts its screenshot and OCRs it.
+ * 4. Reuses a single Tesseract worker across all scanned pages within the job.
+ * 5. Guarantees worker and parser termination in finally block, bounded by execution timeout.
+ */
+export async function extractTextFromPdf(
+  buffer: Buffer,
+  options: { timeoutMs?: number } = {}
+): Promise<OCRExtractionResult> {
+  const timeoutMs = options.timeoutMs || 45000;
+
+  const runPdfExtraction = async (): Promise<OCRExtractionResult> => {
+    let parser: any = null;
+    let worker: any = null;
+
+    try {
+      const pdfParseModule = (await import('pdf-parse')) as any;
+      const PDFParse =
+        pdfParseModule.PDFParse ||
+        pdfParseModule.default?.PDFParse ||
+        pdfParseModule.default ||
+        pdfParseModule;
+
+      parser = new PDFParse({ data: buffer });
+      const textOutput = await parser.getText();
+      const rawPages = textOutput?.pages || [];
+      const totalPages = rawPages.length || (textOutput?.total ?? 1);
+
+      const pageResults: Array<{ text: string; confidence: number; isOcr: boolean }> = [];
+      let scannedPagesCount = 0;
+      let cachedScreenshot: any = null;
+
+      for (let i = 0; i < totalPages; i++) {
+        const pageTextObj = rawPages[i];
+        const pageText = typeof pageTextObj?.text === 'string' ? pageTextObj.text.trim() : '';
+        const alphaCount = (pageText.match(/[a-zA-Z0-9]/g) || []).length;
+
+        // Check if page has sufficient digital/selectable text
+        if (alphaCount >= 30) {
+          pageResults.push({
+            text: pageText,
+            confidence: 0.95,
+            isOcr: false,
+          });
+        } else {
+          // Scanned page: needs screenshot and OCR
+          scannedPagesCount++;
+
+          if (!cachedScreenshot) {
+            cachedScreenshot = await parser.getScreenshot().catch((err: any) => {
+              console.warn('Failed to capture PDF screenshot:', err);
+              return null;
+            });
+          }
+
+          const pageScreenshotData =
+            cachedScreenshot?.pages?.[i]?.data ||
+            (i === 0 ? cachedScreenshot?.data : null);
+
+          if (pageScreenshotData) {
+            // Lazy-initialize single reusable OCR worker
+            if (!worker) {
+              worker = await createOCRWorker();
+            }
+
+            const imgBuffer = Buffer.from(pageScreenshotData);
+            const ocrRes = await extractTextFromImage(imgBuffer, worker, {
+              timeoutMs: 25000,
+            });
+
+            pageResults.push({
+              text: ocrRes.text,
+              confidence: ocrRes.confidence,
+              isOcr: true,
+            });
+          } else {
+            // Fallback: minimal text available
+            pageResults.push({
+              text: pageText,
+              confidence: 0.2,
+              isOcr: false,
+            });
+          }
+        }
+      }
+
+      const combinedText = pageResults.map((p) => p.text).filter(Boolean).join('\n\n');
+      const avgConfidence =
+        pageResults.length > 0
+          ? pageResults.reduce((acc, p) => acc + p.confidence, 0) / pageResults.length
+          : 0.1;
+
+      const lines = combinedText
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0)
+        .map((text) => ({ text, confidence: avgConfidence }));
+
+      return {
+        text: combinedText,
+        confidence: avgConfidence,
+        lines,
+        isScannedPdf: scannedPagesCount > 0,
+      };
+    } finally {
+      if (worker) {
+        await worker.terminate().catch((err: any) => {
+          console.warn('Error terminating OCR worker from PDF extraction:', err);
+        });
+      }
+      if (parser && typeof parser.destroy === 'function') {
+        await parser.destroy().catch((err: any) => {
+          console.warn('Error destroying PDF parser:', err);
+        });
+      }
+    }
+  };
+
+  return withTimeout(runPdfExtraction(), timeoutMs, 'PDF extraction');
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,9 @@ import {
   Loader2,
   Trash2,
   Scan,
+  XCircle,
+  RefreshCw,
+  Clock,
 } from 'lucide-react';
 import { requestAIImportUploadUrl, extractMenuFromSource } from '@/actions/ai-import';
 import type { AIMenuExtractionOutput } from '@/validations/ai';
@@ -35,8 +38,41 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
   const [uploadProgress, setUploadProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const cleanupTimers = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => cleanupTimers();
+  }, []);
+
+  const handleCancelExtraction = (customReason?: string) => {
+    cleanupTimers();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsProcessing(false);
+    setUploadProgress(0);
+    setErrorMessage(
+      customReason ||
+        'Extraction was cancelled. You can retry with a smaller file, or paste your menu text directly below.'
+    );
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, expectedType: 'image' | 'pdf' | 'csv') => {
     setErrorMessage(null);
@@ -92,12 +128,30 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
     setErrorMessage(null);
     setIsProcessing(true);
     setUploadProgress(10);
+    setElapsedSeconds(0);
     setStatusMessage('Preparing upload...');
+
+    cleanupTimers();
+    abortControllerRef.current = new AbortController();
+
+    const startTime = Date.now();
+    timerRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      setElapsedSeconds(elapsed);
+    }, 100);
+
+    // Bounded execution timeout: 45 seconds on client
+    timeoutRef.current = setTimeout(() => {
+      handleCancelExtraction(
+        'Extraction timed out after 45 seconds. The document may be too large or the server reached its execution limit. You can retry or switch to pasted text.'
+      );
+    }, 45000);
 
     try {
       if (activeTab === 'text') {
         if (!pastedText.trim()) {
           setErrorMessage('Please paste your menu text before starting extraction.');
+          cleanupTimers();
           setIsProcessing(false);
           return;
         }
@@ -113,6 +167,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
           throw new Error(res.error || 'Extraction failed');
         }
 
+        cleanupTimers();
         setUploadProgress(100);
         setStatusMessage('Menu structured successfully!');
         onExtractionSuccess(res.data);
@@ -122,6 +177,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
       if (activeTab === 'csv') {
         if (!csvContent.trim()) {
           setErrorMessage('Please select a valid CSV file.');
+          cleanupTimers();
           setIsProcessing(false);
           return;
         }
@@ -137,6 +193,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
           throw new Error(res.error || 'CSV extraction failed');
         }
 
+        cleanupTimers();
         setUploadProgress(100);
         setStatusMessage('Spreadsheet imported successfully!');
         onExtractionSuccess(res.data);
@@ -146,11 +203,12 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
       // For Image and PDF:
       if (!selectedFile) {
         setErrorMessage(`Please select a ${activeTab.toUpperCase()} file to upload.`);
+        cleanupTimers();
         setIsProcessing(false);
         return;
       }
 
-      setStatusMessage('Requesting secure Cloudflare R2 upload link...');
+      setStatusMessage('Requesting secure Cloudflare R2 upload authorization...');
       setUploadProgress(20);
 
       const presignRes = await requestAIImportUploadUrl(
@@ -166,8 +224,8 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
       const { uploadUrl, key } = presignRes.data;
 
       // Direct R2 upload via PUT
-      setStatusMessage('Saving original file to secure Cloudflare R2 vault...');
-      setUploadProgress(40);
+      setStatusMessage('Saving original file to secure vault...');
+      setUploadProgress(35);
 
       try {
         await fetch(uploadUrl, {
@@ -176,18 +234,19 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
           headers: {
             'Content-Type': selectedFile.type,
           },
+          signal: abortControllerRef.current?.signal,
         });
-      } catch (uploadErr) {
-        console.warn('Direct R2 PUT failed (likely mock/local mode):', uploadErr);
+      } catch (uploadErr: any) {
+        if (uploadErr.name === 'AbortError') throw uploadErr;
+        console.warn('Direct storage PUT failed (likely mock/local mode):', uploadErr);
       }
 
-      // Convert to base64 for local server OCR
       setStatusMessage(
         selectedFile.type === 'application/pdf'
-          ? 'Reading PDF document text & layers...'
+          ? 'Inspecting document pages & text layers...'
           : 'Preprocessing image with Sharp (grayscale & contrast)...'
       );
-      setUploadProgress(65);
+      setUploadProgress(55);
 
       const base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -200,8 +259,12 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
         reader.readAsDataURL(selectedFile);
       });
 
-      setStatusMessage('Running local Tesseract OCR & detecting categories, prices and variants...');
-      setUploadProgress(85);
+      setStatusMessage(
+        selectedFile.type === 'application/pdf'
+          ? 'Reading document text and running OCR on scanned pages...'
+          : 'Loading OCR engine & recognizing dishes, prices and variants...'
+      );
+      setUploadProgress(75);
 
       const extractionRes = await extractMenuFromSource(restaurantId, {
         type: 'direct_base64',
@@ -211,18 +274,30 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
       });
 
       if (!extractionRes.success || !extractionRes.data) {
-        throw new Error(extractionRes.error || 'We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.');
+        throw new Error(
+          extractionRes.error ||
+            'We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.'
+        );
       }
 
+      setStatusMessage('Detecting categories, prices and variants...');
+      setUploadProgress(95);
+
+      cleanupTimers();
       setUploadProgress(100);
       setStatusMessage('OCR extraction complete! Review your menu below.');
       onExtractionSuccess(extractionRes.data);
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('Extraction error:', err);
       setErrorMessage(
-        err.message || 'We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.'
+        err.message ||
+          'We could not read this menu reliably. Please upload a clearer photo, PDF, CSV, or paste the menu text.'
       );
     } finally {
+      cleanupTimers();
       setIsProcessing(false);
     }
   };
@@ -336,7 +411,7 @@ export function MenuSourceUploader({ restaurantId, onExtractionSuccess }: MenuSo
                   Click to select a PDF menu or catalog
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Supported format: PDF document (Max 10 MB) • Text layers &amp; scanned OCR fallback supported
+                  Supported format: PDF document (Max 10 MB) • Digital text layers &amp; scanned OCR fallback supported
                 </p>
                 <input
                   ref={fileInputRef}
@@ -439,18 +514,28 @@ Dal Makhani - Slow cooked black lentils - ₹220`}
           </TabsContent>
         </Tabs>
 
-        {/* ERROR / FALLBACK NOTICE */}
+        {/* ERROR / RETRY NOTICE */}
         {errorMessage && (
-          <div className="rounded-xl p-4 bg-destructive/10 border border-destructive/20 text-destructive text-sm space-y-2">
+          <div className="rounded-xl p-4 bg-destructive/10 border border-destructive/20 text-destructive text-sm space-y-3">
             <div className="flex items-start gap-2">
               <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold">OCR Scan Notice</p>
+                <p className="font-semibold">OCR Notice</p>
                 <p className="text-xs opacity-90 mt-0.5">{errorMessage}</p>
               </div>
             </div>
-            {activeTab !== 'text' && (
-              <div className="pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleStartExtraction}
+                className="text-xs h-7 border-destructive/30 hover:bg-destructive/10 flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Retry Extraction</span>
+              </Button>
+              {activeTab !== 'text' && (
                 <Button
                   type="button"
                   variant="outline"
@@ -464,22 +549,43 @@ Dal Makhani - Slow cooked black lentils - ₹220`}
                   <FileText className="w-3.5 h-3.5" />
                   <span>Switch to Pasted Text Instead</span>
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
-        {/* PROGRESS BAR */}
+        {/* PROGRESS BAR WITH REAL-TIME ELAPSED TICKER & CANCEL BUTTON */}
         {isProcessing && (
-          <div className="space-y-2 p-4 bg-muted/30 rounded-xl border border-border">
+          <div className="space-y-3 p-4 bg-muted/30 rounded-xl border border-border">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5 font-medium text-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                {statusMessage}
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                <span>{statusMessage}</span>
               </span>
-              <span>{uploadProgress}%</span>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1 font-mono text-[11px] bg-muted px-2 py-0.5 rounded text-foreground">
+                  <Clock className="h-3 w-3 text-muted-foreground" />
+                  {elapsedSeconds.toFixed(1)}s
+                </span>
+                <span className="font-semibold text-foreground">{uploadProgress}%</span>
+              </div>
             </div>
             <Progress value={uploadProgress} className="h-2" />
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-[11px] text-muted-foreground">
+                Local server-side engine running. Processing time depends on document size.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleCancelExtraction()}
+                className="text-xs h-7 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive flex items-center gap-1"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                <span>Cancel</span>
+              </Button>
+            </div>
           </div>
         )}
 
@@ -498,7 +604,7 @@ Dal Makhani - Slow cooked black lentils - ₹220`}
             {isProcessing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Running Local OCR...</span>
+                <span>Running Local OCR ({elapsedSeconds.toFixed(1)}s)...</span>
               </>
             ) : (
               <>
