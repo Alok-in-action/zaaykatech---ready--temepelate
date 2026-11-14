@@ -2,7 +2,23 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { validateStagingEnv } from '@/validations/env';
 
-const startTime = Date.now();
+export const dynamic = 'force-dynamic';
+
+const CHECK_TIMEOUT_MS = 3500;
+
+/**
+ * Bounded execution wrapper for individual dependency health checks.
+ */
+async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Check timed out')), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
 
 export async function GET() {
   const startDbCheck = Date.now();
@@ -10,92 +26,80 @@ export async function GET() {
   let dbLatencyMs = 0;
   let storageAccessible = false;
 
-  // 1. Check Database connectivity via service client
+  // 1. Required: Database query check with bounded timeout
   try {
     const supabase = createServiceClient();
-    const { error } = await supabase.from('plans').select('id').limit(1);
+    const { error } = await withTimeout(
+      supabase.from('plans').select('id').limit(1),
+      CHECK_TIMEOUT_MS
+    );
     dbLatencyMs = Date.now() - startDbCheck;
     dbConnected = !error;
   } catch {
     dbConnected = false;
+    dbLatencyMs = Date.now() - startDbCheck;
   }
 
-  // 2. Check Supabase Storage accessibility
+  // 2. Required: Supabase Storage bucket metadata check with bounded timeout
+  // NOTE: Successful bucket metadata access verifies the Storage API is responsive
+  // and the bucket exists, but does not test active file reads or writes.
   try {
     const serviceClient = createServiceClient();
-    const { data, error } = await serviceClient.storage.getBucket('zaaykatech-media');
-    storageAccessible = !error && !!data;
+    const { data, error } = await withTimeout(
+      serviceClient.storage.getBucket('zaaykatech-media'),
+      CHECK_TIMEOUT_MS
+    );
+    storageAccessible = !error && Boolean(data);
   } catch {
     storageAccessible = false;
   }
 
-  // 3. Check Razorpay configuration without exposing secret keys
-  const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
-  const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
-  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-
-  const razorpayConfigured = Boolean(
-    razorpayKeyId &&
-      razorpayKeySecret &&
-      razorpayKeyId !== 'placeholder_razorpay_key_id' &&
-      razorpayKeySecret !== 'placeholder_razorpay_key_secret'
-  );
-
-  const razorpayMode = razorpayKeyId?.startsWith('rzp_test_')
-    ? 'test'
-    : razorpayKeyId?.startsWith('rzp_live_')
-    ? 'live'
-    : 'unconfigured';
-
-  const webhookConfigured = Boolean(
-    webhookSecret && webhookSecret !== 'placeholder_razorpay_webhook_secret'
-  );
-
-  // 4. Validate Environment Variables
+  // 3. Required: Core environment credentials validation
+  // NOTE: Valid Razorpay keys confirm required configuration strings are present,
+  // but do not test active third-party bank authentication or checkout flows.
   const envReport = validateStagingEnv();
 
-  const isHealthy = dbConnected && storageAccessible && razorpayConfigured && envReport.isValid;
-  const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
+  // All core dependencies must pass for overall healthy status
+  const isHealthy = dbConnected && storageAccessible && envReport.isValid;
 
-  const responsePayload = {
-    status: isHealthy ? 'healthy' : 'degraded',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    uptimeSeconds,
-    environment: process.env.NODE_ENV || 'development',
-    services: {
-      app: {
-        status: 'ok',
-        appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-      },
-      database: {
-        status: dbConnected ? 'ok' : 'error',
-        connected: dbConnected,
-        latencyMs: dbLatencyMs,
-      },
-      storage: {
-        status: storageAccessible ? 'ok' : 'degraded',
-        provider: 'supabase',
-        bucket: 'zaaykatech-media',
-        accessible: storageAccessible,
-      },
-      razorpay: {
-        status: razorpayConfigured ? 'ok' : 'degraded',
-        configured: razorpayConfigured,
-        mode: razorpayMode,
-        keyIdPrefix: razorpayKeyId ? `${razorpayKeyId.slice(0, 8)}...` : null,
-        keySecretConfigured: Boolean(razorpayKeySecret),
-        webhookConfigured,
-      },
-    },
-    missingConfig: envReport.missing,
-    warnings: envReport.warnings,
+  // Server-side operational diagnostics (never exposed in public HTTP payload)
+  if (!isHealthy) {
+    console.error('[HealthCheck UNHEALTHY]', {
+      timestamp: new Date().toISOString(),
+      database: dbConnected ? 'ok' : 'error',
+      dbLatencyMs,
+      storage: storageAccessible ? 'ok' : 'error',
+      envValid: envReport.isValid,
+      missingConfigCount: envReport.missing.length,
+    });
+  } else {
+    console.info('[HealthCheck HEALTHY]', {
+      timestamp: new Date().toISOString(),
+      dbLatencyMs,
+    });
+  }
+
+  const responseHeaders = {
+    'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
   };
 
-  return NextResponse.json(responsePayload, {
-    status: dbConnected ? 200 : 503,
-    headers: {
-      'Cache-Control': 'no-store, max-age=0',
-    },
-  });
+  if (!isHealthy) {
+    return NextResponse.json(
+      { status: 'unhealthy' },
+      {
+        status: 503,
+        headers: responseHeaders,
+      }
+    );
+  }
+
+  return NextResponse.json(
+    { status: 'healthy' },
+    {
+      status: 200,
+      headers: responseHeaders,
+    }
+  );
 }
