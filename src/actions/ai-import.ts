@@ -99,7 +99,7 @@ export async function requestAIImportUploadUrl(
   // Verify ownership
   const { data: restaurant, error: restError } = await supabase
     .from('restaurants')
-    .select('id, owner_profile_id')
+    .select('id, owner_profile_id, onboarding_status, onboarding_current_step')
     .eq('id', restaurantId)
     .is('archived_at', null)
     .single();
@@ -348,7 +348,7 @@ export async function commitExtractedMenu(
   // Verify ownership
   const { data: restaurant, error: restError } = await supabase
     .from('restaurants')
-    .select('id, owner_profile_id')
+    .select('id, owner_profile_id, onboarding_status, onboarding_current_step')
     .eq('id', restaurantId)
     .is('archived_at', null)
     .single();
@@ -364,7 +364,7 @@ export async function commitExtractedMenu(
   }
 
   try {
-    // 1. Fetch current max category position
+    // 1. Fetch current max category position and existing categories
     const { data: existingCategories } = await supabase
       .from('menu_categories')
       .select('id, name, position')
@@ -382,6 +382,7 @@ export async function commitExtractedMenu(
 
     let importedCategoriesCount = 0;
     let importedItemsCount = 0;
+    let skippedItemsCount = 0;
 
     for (const catData of parsed.data.categories) {
       const normalizedName = catData.name.trim().toLowerCase();
@@ -427,43 +428,61 @@ export async function commitExtractedMenu(
         )
       );
 
+      // Collect non-duplicate items to batch insert
+      const itemsToInsert: Array<Record<string, any>> = [];
+
       for (const item of catData.items) {
         const itemLower = item.name.trim().toLowerCase();
         // Skip duplicate items if already present in this category
         if (existingItemNames.has(itemLower)) {
+          skippedItemsCount++;
           continue;
         }
 
         const itemSlug = `${slugify(item.name) || 'item'}-${crypto.randomBytes(3).toString('hex')}`;
-        const { error: itemErr } = await supabase
-          .from('menu_items')
-          .insert({
-            restaurant_id: restaurantId,
-            category_id: effectiveCatId,
-            name: item.name.trim(),
-            slug: itemSlug,
-            description: item.description || null,
-            price_paise: item.pricingMode === 'single' ? item.pricePaise : null,
-            variant_prices: item.pricingMode === 'variants' ? item.variantPrices : null,
-            is_veg: item.isVeg ?? null,
-            tags: item.tags || [],
-            is_available: true,
-            is_signature: item.isSignature || false,
-            is_most_ordered: item.isMostOrdered || false,
-            custom_tag: item.customTag || null,
-            position: nextItemPos++,
-          });
-
-        if (itemErr) {
-          throw new Error(`Failed to insert item "${item.name}": ${itemErr.message}`);
-        }
+        itemsToInsert.push({
+          restaurant_id: restaurantId,
+          category_id: effectiveCatId,
+          name: item.name.trim(),
+          slug: itemSlug,
+          description: item.description || null,
+          price_paise: item.pricingMode === 'single' ? item.pricePaise : null,
+          variant_prices: item.pricingMode === 'variants' ? item.variantPrices : null,
+          is_veg: item.isVeg ?? null,
+          tags: item.tags || [],
+          is_available: true,
+          is_signature: item.isSignature || false,
+          is_most_ordered: item.isMostOrdered || false,
+          custom_tag: item.customTag || null,
+          position: nextItemPos++,
+        });
 
         existingItemNames.add(itemLower);
-        importedItemsCount++;
+      }
+
+      // Execute batch insert in bounded chunks of 25 to optimize performance without payload overflow
+      const BATCH_SIZE = 25;
+      for (let i = 0; i < itemsToInsert.length; i += BATCH_SIZE) {
+        const chunk = itemsToInsert.slice(i, i + BATCH_SIZE);
+        const { error: batchErr } = await supabase.from('menu_items').insert(chunk);
+
+        if (batchErr) {
+          throw new Error(`Failed to insert dish batch for category "${catData.name}": ${batchErr.message}`);
+        }
+
+        importedItemsCount += chunk.length;
       }
     }
 
-    // 2. Log commit audit event
+    // 2. Advance onboarding progress if restaurant is currently completing onboarding
+    if (restaurant.onboarding_status !== 'completed' && (restaurant.onboarding_current_step || 1) < 41) {
+      await supabase
+        .from('restaurants')
+        .update({ onboarding_current_step: 41 })
+        .eq('id', restaurantId);
+    }
+
+    // 3. Log commit audit event
     await logAIAuditEvent({
       actorId: profile.id,
       restaurantId,
@@ -471,10 +490,14 @@ export async function commitExtractedMenu(
       metadata: {
         imported_categories: importedCategoriesCount,
         imported_items: importedItemsCount,
+        skipped_items: skippedItemsCount,
       },
     });
 
+    // 4. Invalidate stale menu and onboarding caches
     revalidatePath('/owner/menu');
+    revalidatePath('/owner/onboarding');
+    revalidatePath('/owner');
 
     return {
       success: true,

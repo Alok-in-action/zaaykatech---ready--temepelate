@@ -103,6 +103,7 @@ export function ExtractionReviewTable({
 
   const [commitModalOpen, setCommitModalOpen] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [commitProgressText, setCommitProgressText] = useState<string>('');
   const [commitError, setCommitError] = useState<string | null>(null);
 
   // Computed summary
@@ -410,16 +411,30 @@ export function ExtractionReviewTable({
         }
       }
 
-      const payload: CommitMenuPayload = {
-        restaurantId,
-        categories: commitCategories,
-      };
+      const totalSelectedDishes = commitCategories.reduce((acc, cat) => acc + cat.items.length, 0);
+      setCommitProgressText(`Importing 0 of ${totalSelectedDishes} dishes...`);
 
-      const res = await commitExtractedMenu(restaurantId, payload);
-      if (!res.success) {
-        throw new Error(res.error || 'Failed to save menu items.');
+      let totalImported = 0;
+      for (let c = 0; c < commitCategories.length; c++) {
+        const cat = commitCategories[c];
+        setCommitProgressText(`Importing ${cat.name} (${totalImported} of ${totalSelectedDishes} dishes)...`);
+
+        const res = await commitExtractedMenu(restaurantId, {
+          restaurantId,
+          categories: [cat],
+        });
+
+        if (!res.success) {
+          throw new Error(
+            `Failed to save category "${cat.name}". ${totalImported} of ${totalSelectedDishes} dishes were saved. Error: ${res.error || 'Server error'}`
+          );
+        }
+
+        totalImported += cat.items.length;
+        setCommitProgressText(`Imported ${totalImported} of ${totalSelectedDishes} dishes`);
       }
 
+      setCommitProgressText(`Imported ${totalImported} of ${totalSelectedDishes} dishes!`);
       setCommitModalOpen(false);
       onCommitted();
     } catch (err: any) {
@@ -922,12 +937,12 @@ export function ExtractionReviewTable({
               {isCommitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Importing Dishes...</span>
+                  <span>{commitProgressText || 'Importing Dishes...'}</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4" />
-                  <span>Confirm & Import</span>
+                  <span>Confirm & Import ({selectedItemsCount})</span>
                 </>
               )}
             </Button>

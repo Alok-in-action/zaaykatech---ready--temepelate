@@ -97,9 +97,17 @@ export function OnboardingWizard({
   const t: OnboardingStrings = ONBOARDING_I18N.en;
 
   // Derive initial sub-step from integer initialStep (composite or legacy)
-  const initialSubStepId: SubStepId = isFreshPublish
+  let initialSubStepId: SubStepId = isFreshPublish
     ? '5b'
     : stepNumberToSubStep(initialRestaurant?.onboarding_current_step || initialStep);
+
+  // If minimum valid menu requirement is already satisfied (>= 1 category and >= 1 item),
+  // resume at Review ('4a') instead of asking for a first category or dish.
+  if (!isFreshPublish && initialCategories.length >= 1 && initialItems.length >= 1) {
+    if (initialSubStepId === '3a' || initialSubStepId === '3b' || initialSubStepId === '3c') {
+      initialSubStepId = '4a';
+    }
+  }
 
   const [subStep, setSubStep] = useState<SubStepId>(initialSubStepId);
   const [returnToReview, setReturnToReview] = useState<boolean>(false);

@@ -56,6 +56,15 @@
   transform: translateY(0);
 }
 
+/* Fallback: if animations or observers are disabled or fail */
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
 .glass-nav {
   background: hsl(var(--color-background) / 0.85);
   backdrop-filter: blur(12px);

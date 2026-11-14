@@ -564,56 +564,6 @@ function getSectionConfig(sectionId: string) {
     return { CardComponent, gridCols };
 }
 
-const LazySection = ({
-    children,
-    isPriority = false,
-    id,
-    title,
-}: {
-    children: React.ReactNode;
-    isPriority?: boolean;
-    id: string;
-    title: string;
-}) => {
-    const [isVisible, setIsVisible] = useState(isPriority);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (isPriority || isVisible) return;
-        const el = containerRef.current;
-        if (!el) return;
-
-        if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
-            setIsVisible(true);
-            return;
-        }
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0]?.isIntersecting) {
-                    setIsVisible(true);
-                    observer.disconnect();
-                }
-            },
-            { rootMargin: '350px 0px' }
-        );
-
-        observer.observe(el);
-        return () => observer.disconnect();
-    }, [isPriority, isVisible]);
-
-    if (isVisible) {
-        return <div id={id} ref={containerRef} className="scroll-mt-24">{children}</div>;
-    }
-
-    return (
-        <div id={id} ref={containerRef} className="scroll-mt-24 min-h-[140px] py-6 my-2 text-center">
-            <h2 className="font-script text-3xl text-primary mb-2 opacity-80">{title}</h2>
-            <div className="h-20 max-w-md mx-auto rounded-xl bg-primary/5 animate-pulse" />
-        </div>
-    );
-};
-
 const SectionComponent = ({ section: originalSection }: { section: MenuSection }) => {
     let currentCell = 0;
     const itemsCount = originalSection.items.length;
@@ -809,7 +759,7 @@ const SectionComponent = ({ section: originalSection }: { section: MenuSection }
     }
 
     return (
-        <section id={section.id} className="reveal">
+        <section id={section.id} className="reveal scroll-mt-24">
             {section.preheader && (
                 <p className="font-sans text-sm font-medium uppercase tracking-widest text-primary text-center mb-2">{section.preheader}</p>
             )}
@@ -874,6 +824,14 @@ export default function MenuClient({
 
         let activeObserver: IntersectionObserver | null = null;
         let revealObserver: IntersectionObserver | null = null;
+        let safetyTimeoutId: NodeJS.Timeout | null = null;
+
+        const hasIO = typeof window !== 'undefined' && 'IntersectionObserver' in window;
+
+        if (!hasIO) {
+            document.querySelectorAll('.reveal').forEach(el => el.classList.add('active'));
+            return;
+        }
 
         // Small delay to ensure DOM has updated with the new sections
         const timeoutId = setTimeout(() => {
@@ -891,8 +849,8 @@ export default function MenuClient({
                 });
             }, observerOptions);
 
-            const revealElementsSnapshot = document.querySelectorAll('section[id]');
-            revealElementsSnapshot.forEach(el => activeObserver?.observe(el));
+            const sectionElements = document.querySelectorAll('section[id]');
+            sectionElements.forEach(el => activeObserver?.observe(el));
 
             // Original reveal observer
             revealObserver = new IntersectionObserver((entries) => {
@@ -902,14 +860,22 @@ export default function MenuClient({
                         revealObserver?.unobserve(entry.target);
                     }
                 });
-            }, { threshold: 0.1 });
+            }, { threshold: 0.05 });
 
             const revealElements = document.querySelectorAll('.reveal');
             revealElements.forEach(el => revealObserver?.observe(el));
-        }, 100);
+
+            // Progressive enhancement safety: ensure all content becomes visible even if scroll or observer fails
+            safetyTimeoutId = setTimeout(() => {
+                document.querySelectorAll('.reveal:not(.active)').forEach(el => {
+                    el.classList.add('active');
+                });
+            }, 500);
+        }, 60);
 
         return () => {
             clearTimeout(timeoutId);
+            if (safetyTimeoutId) clearTimeout(safetyTimeoutId);
             activeObserver?.disconnect();
             revealObserver?.disconnect();
         };
@@ -1026,23 +992,22 @@ export default function MenuClient({
             )}
 
             <header className="pt-6 sm:pt-8 pb-4 px-4 sm:px-6 flex justify-between items-center max-w-7xl mx-auto">
-                <div className="flex items-center gap-2 reveal active">
-                    {theme?.logoUrl ? (
+                <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1 mr-2 sm:mr-4 reveal active">
+                    {theme?.logoUrl && (
                         <Image
                             src={theme.logoUrl}
                             alt={`${theme?.restaurantName || 'Restaurant'} Logo`}
-                            width={180}
+                            width={160}
                             height={60}
-                            className="h-12 w-auto object-contain"
+                            className="h-10 sm:h-12 w-auto max-w-[65px] sm:max-w-[120px] object-contain shrink-0"
                             priority
                         />
-                    ) : (
-                        <span className="font-script text-3xl sm:text-4xl text-primary font-bold">
-                            {theme?.restaurantName || 'Menu'}
-                        </span>
                     )}
+                    <span className="font-script text-2xl sm:text-3xl lg:text-4xl text-primary font-bold truncate min-w-0 leading-tight">
+                        {theme?.restaurantName || 'Menu'}
+                    </span>
                 </div>
-                <div className="flex items-center gap-3 relative">
+                <div className="flex items-center gap-2 sm:gap-3 relative shrink-0">
                     <button
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         className="w-10 h-10 rounded-full border border-primary/20 flex items-center justify-center hover:bg-primary hover:text-background transition-colors reveal active duration-500 relative z-[101]"
@@ -1289,6 +1254,11 @@ export default function MenuClient({
                                 <li key={section.id} className="snap-start" data-section={section.id}>
                                     <a
                                         href={`#${section.id}`}
+                                        onClick={() => {
+                                            const el = document.getElementById(section.id);
+                                            el?.classList.add('active');
+                                            setActiveSection(section.id);
+                                        }}
                                         className={`whitespace-nowrap px-5 sm:px-8 py-3 sm:py-4 rounded-full font-sans text-sm sm:text-base font-semibold transition-all duration-300 active:scale-95 flex items-center justify-center min-w-[100px] sm:min-w-[120px] ${isActive
                                             ? 'bg-primary text-background shadow-lg shadow-primary/30 scale-105'
                                             : 'bg-[#fffefb] border border-primary/15 text-primary hover:bg-primary/5'
@@ -1315,75 +1285,73 @@ export default function MenuClient({
                         const calzoneSection = sections.find(s => s.id === 'calzone');
 
                         return (
-                            <LazySection key={section.id} id="pizza" title={section.title} isPriority={index < 2}>
-                                <section id="pizza" className="reveal -mx-4 sm:-mx-6 px-4 sm:px-6 py-8 bg-gradient-to-br from-[#f5e6d3] via-background to-[#ede0d0] rounded-2xl border border-primary/10 shadow-sm">
-                                    <div className="max-w-7xl mx-auto space-y-12">
-                                        {/* Pizza Section */}
-                                        <div>
-                                            {section.preheader && (
-                                                <div className="flex items-center justify-center gap-3 mb-2">
-                                                    <iconify-icon icon="game-icons:wood-pile" className="text-primary text-lg opacity-70"></iconify-icon>
-                                                    <p className="font-sans text-sm font-medium uppercase tracking-widest text-primary">{section.preheader}</p>
-                                                    <iconify-icon icon="game-icons:wood-pile" className="text-primary text-lg opacity-70"></iconify-icon>
-                                                </div>
-                                            )}
-                                            <div className="flex items-end gap-3 mb-6 px-1">
-                                                <iconify-icon icon="mdi:fire" className="text-[#D2691E] text-3xl mb-1 opacity-80"></iconify-icon>
-                                                <h2 className="font-script text-3xl text-primary">{section.title}</h2>
-                                                <span className="h-px flex-1 bg-primary/20 mb-2"></span>
-                                                <iconify-icon icon="mdi:fire" className="text-[#D2691E] text-3xl mb-1 opacity-80"></iconify-icon>
+                            <section key="pizza" id="pizza" className="reveal -mx-4 sm:-mx-6 px-4 sm:px-6 py-8 bg-gradient-to-br from-[#f5e6d3] via-background to-[#ede0d0] rounded-2xl border border-primary/10 shadow-sm scroll-mt-24">
+                                <div className="max-w-7xl mx-auto space-y-12">
+                                    {/* Pizza Section */}
+                                    <div>
+                                        {section.preheader && (
+                                            <div className="flex items-center justify-center gap-3 mb-2">
+                                                <iconify-icon icon="game-icons:wood-pile" className="text-primary text-lg opacity-70"></iconify-icon>
+                                                <p className="font-sans text-sm font-medium uppercase tracking-widest text-primary">{section.preheader}</p>
+                                                <iconify-icon icon="game-icons:wood-pile" className="text-primary text-lg opacity-70"></iconify-icon>
                                             </div>
+                                        )}
+                                        <div className="flex items-end gap-3 mb-6 px-1">
+                                            <iconify-icon icon="mdi:fire" className="text-[#D2691E] text-3xl mb-1 opacity-80"></iconify-icon>
+                                            <h2 className="font-script text-3xl text-primary">{section.title}</h2>
+                                            <span className="h-px flex-1 bg-primary/20 mb-2"></span>
+                                            <iconify-icon icon="mdi:fire" className="text-[#D2691E] text-3xl mb-1 opacity-80"></iconify-icon>
+                                        </div>
 
-                                            <div className="text-center -mt-4 mb-8 max-w-2xl mx-auto bg-secondary/50 p-6 rounded-xl border border-primary/10">
-                                                <p className="font-sans text-sm font-medium uppercase tracking-widest text-primary mb-4">Choice of Base</p>
-                                                <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 text-xs text-[#6B3A20]/80">
-                                                    <div>
-                                                        <h4 className="font-sans font-semibold text-sm text-primary mb-1">NEW YORK STYLE</h4>
-                                                        <p>A thin, hand-tossed crust, soft in the center, crisp at the edge, and perfectly foldable.</p>
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-sans font-semibold text-sm text-primary mb-1">NEAPOLITAN</h4>
-                                                        <p>Crafted with long-rested dough, giving you a pillowy centre, crispy edges, and that signature smoky char.</p>
-                                                    </div>
+                                        <div className="text-center -mt-4 mb-8 max-w-2xl mx-auto bg-secondary/50 p-6 rounded-xl border border-primary/10">
+                                            <p className="font-sans text-sm font-medium uppercase tracking-widest text-primary mb-4">Choice of Base</p>
+                                            <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 text-xs text-[#6B3A20]/80">
+                                                <div>
+                                                    <h4 className="font-sans font-semibold text-sm text-primary mb-1">NEW YORK STYLE</h4>
+                                                    <p>A thin, hand-tossed crust, soft in the center, crisp at the edge, and perfectly foldable.</p>
                                                 </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                {section.items.map((item, index) => <PizzaItemCard key={`${item.name}-${index}`} item={item} />)}
+                                                <div>
+                                                    <h4 className="font-sans font-semibold text-sm text-primary mb-1">NEAPOLITAN</h4>
+                                                    <p>Crafted with long-rested dough, giving you a pillowy centre, crispy edges, and that signature smoky char.</p>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Garlic Bread Section */}
-                                        {garlicBreadSection && (
-                                            <div id="garlic-bread">
-                                                <div className="flex items-end gap-3 mb-6 px-1">
-                                                    <h2 className="font-script text-3xl text-primary">{garlicBreadSection.title}</h2>
-                                                    <span className="h-px flex-1 bg-primary/20 mb-2"></span>
-                                                </div>
-                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                                    {garlicBreadSection.items.map((item, index) => <MenuItemCard key={`${item.name}-${index}`} item={item} />)}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Calzone Section */}
-                                        {calzoneSection && (
-                                            <div id="calzone">
-                                                <div className="flex items-end gap-3 mb-6 px-1">
-                                                    <h2 className="font-script text-3xl text-primary">{calzoneSection.title}</h2>
-                                                    <span className="h-px flex-1 bg-primary/20 mb-2"></span>
-                                                </div>
-                                                {calzoneSection.subtitle && (
-                                                    <p className="font-sans text-xs text-center text-[#6B3A20]/80 italic -mt-4 mb-6 max-w-lg mx-auto whitespace-pre-line">{calzoneSection.subtitle}</p>
-                                                )}
-                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                                                    {calzoneSection.items.map((item, index) => <MenuItemCard key={`${item.name}-${index}`} item={item} />)}
-                                                </div>
-                                            </div>
-                                        )}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {section.items.map((item, index) => <PizzaItemCard key={`${item.name}-${index}`} item={item} />)}
+                                        </div>
                                     </div>
-                                </section>
-                            </LazySection>
+
+                                    {/* Garlic Bread Section */}
+                                    {garlicBreadSection && (
+                                        <div id="garlic-bread">
+                                            <div className="flex items-end gap-3 mb-6 px-1">
+                                                <h2 className="font-script text-3xl text-primary">{garlicBreadSection.title}</h2>
+                                                <span className="h-px flex-1 bg-primary/20 mb-2"></span>
+                                            </div>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                {garlicBreadSection.items.map((item, index) => <MenuItemCard key={`${item.name}-${index}`} item={item} />)}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Calzone Section */}
+                                    {calzoneSection && (
+                                        <div id="calzone">
+                                            <div className="flex items-end gap-3 mb-6 px-1">
+                                                <h2 className="font-script text-3xl text-primary">{calzoneSection.title}</h2>
+                                                <span className="h-px flex-1 bg-primary/20 mb-2"></span>
+                                            </div>
+                                            {calzoneSection.subtitle && (
+                                                <p className="font-sans text-xs text-center text-[#6B3A20]/80 italic -mt-4 mb-6 max-w-lg mx-auto whitespace-pre-line">{calzoneSection.subtitle}</p>
+                                            )}
+                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                {calzoneSection.items.map((item, index) => <MenuItemCard key={`${item.name}-${index}`} item={item} />)}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
                         );
                     }
 
@@ -1393,9 +1361,9 @@ export default function MenuClient({
                     }
 
                     return (
-                        <LazySection key={section.id} id={section.id} title={section.title} isPriority={index < 2}>
+                        <div key={section.id} className="scroll-mt-24">
                             <SectionComponent section={section} />
-                        </LazySection>
+                        </div>
                     );
                 })}
                 <div className="max-w-7xl mx-auto py-4 text-center reveal">

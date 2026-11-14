@@ -54,7 +54,7 @@ export async function createSubscriptionOrder(restaurantId: string) {
       },
     });
 
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '';
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim() || process.env.RAZORPAY_KEY_ID?.trim() || '';
 
     return {
       success: true,

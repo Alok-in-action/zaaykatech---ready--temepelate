@@ -26,7 +26,12 @@ export async function createRazorpayOrder(params: {
   const receipt = params.receipt || `rcpt_${params.restaurantId.slice(0, 8)}_${Date.now()}`;
 
   // If Razorpay keys are not configured or placeholder in development, return a mock order
-  if (!rawKeyId || !rawKeySecret || rawKeyId === 'placeholder_razorpay_key_id') {
+  if (
+    !rawKeyId ||
+    !rawKeySecret ||
+    rawKeyId === 'placeholder_razorpay_key_id' ||
+    rawKeySecret === 'placeholder_razorpay_key_secret'
+  ) {
     return {
       id: `order_mock_${Date.now()}`,
       amount,
