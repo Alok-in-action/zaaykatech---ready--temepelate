@@ -1,8 +1,13 @@
 import fs from 'fs';
 import path from 'path';
+import { notFound } from 'next/navigation';
 import MenuClient from '@/app/MenuClient';
 
 export default function TestTemplate01Page() {
+  // Strictly block test page in production environments
+  if (process.env.NODE_ENV === 'production' && process.env.VERCEL_ENV === 'production') {
+    notFound();
+  }
   const menuPath = '/tmp/template01/content/menu.json';
   const themePath = '/tmp/template01/content/theme.json';
 
