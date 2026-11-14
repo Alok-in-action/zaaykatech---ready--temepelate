@@ -182,7 +182,7 @@ export function SubscriptionCard({
               ? 'Reactivate Menu Now • ₹2,999'
               : 'Upgrade to Yearly Pro • ₹2,999'
           }
-          className="px-6 py-3 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-bold rounded-2xl shadow-sm transition-all apple-press shrink-0 text-center"
+          className="px-6 py-3 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all apple-press shrink-0 text-center"
         />
       </CardFooter>
     </Card>
