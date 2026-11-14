@@ -114,9 +114,11 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantD
       });
 
       if (error || !menuData) {
-        // If query failed or returned null, in production return 404 (unless ALLOW_DEMO_TENANT test override is active)
-        if (!isDemoPermitted) return null;
-        return getDemoFallbackTenant(slug);
+        // If query failed or returned null, allow demo fallback only for 'demo' slug when permitted
+        if (isDemoPermitted && slug === 'demo') {
+          return getDemoFallbackTenant('demo');
+        }
+        return null;
       }
 
       // Check the returned status from the secure database function

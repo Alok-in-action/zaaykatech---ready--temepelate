@@ -54,7 +54,12 @@ test.describe('Public Menu & Owner Regression Suite', () => {
   test('Real Restaurant with Custom Categories at /r/chai-point - 390px', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const res = await page.goto('/r/chai-point');
-    if (!res || res.status() === 404) {
+    const isNotFound =
+      !res ||
+      res.status() === 404 ||
+      (await page.locator('h1:has-text("Page or Restaurant Not Found")').isVisible().catch(() => false));
+
+    if (isNotFound) {
       test.skip(true, 'Live database tenant /r/chai-point is not available');
       return;
     }
