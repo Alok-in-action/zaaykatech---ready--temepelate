@@ -1,5 +1,6 @@
 'use client';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card as ShadCard, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -302,8 +303,25 @@ export default function Home() {
         {/* Hero Section */}
         <AnimatedMarqueeHero
           tagline="THE FUTURE OF DINING IS HERE"
-          title={morphingTitles}
-          description="Elevate your dining experience with smart, interactive QR menus and seamless contactless dining. ZaaykaTech helps you serve more customers, faster."
+          title="Your restaurant’s digital menu. Managed in minutes."
+          description="Create your QR menu, update dishes and prices, and manage everything from one simple dashboard."
+          actions={
+            <>
+              <Link
+                href="/login"
+                className="min-h-[56px] h-14 px-8 py-3.5 w-full sm:w-auto inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground font-semibold text-base shadow-md hover:bg-primary/90 active:scale-[0.98] transition-all"
+              >
+                Sign in
+                <ChevronRight className="w-5 h-5 ml-1" />
+              </Link>
+              <Link
+                href="/r/chai-point"
+                className="min-h-[56px] h-14 px-6 py-3.5 w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-border bg-card/60 backdrop-blur-sm text-foreground font-medium text-base hover:bg-accent/40 active:scale-[0.98] transition-all"
+              >
+                View demo
+              </Link>
+            </>
+          }
           images={DEMO_IMAGES}
           imageLinks={DEMO_IMAGE_LINKS}
         />

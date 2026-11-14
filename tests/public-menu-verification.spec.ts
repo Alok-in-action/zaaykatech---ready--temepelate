@@ -54,17 +54,19 @@ test.describe('Public Menu & Owner Regression Suite', () => {
   test('Real Restaurant with Custom Categories at /r/chai-point - 390px', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const res = await page.goto('/r/chai-point');
+    await page.waitForLoadState('networkidle');
+
+    const notFoundHeading = page.locator('h1:has-text("Page or Restaurant Not Found")');
     const isNotFound =
       !res ||
       res.status() === 404 ||
-      (await page.locator('h1:has-text("Page or Restaurant Not Found")').isVisible().catch(() => false));
+      (await notFoundHeading.isVisible({ timeout: 1000 }).catch(() => false));
 
     if (isNotFound) {
-      test.skip(true, 'Live database tenant /r/chai-point is not available');
+      test.skip(true, 'Live database tenant /r/chai-point is not available in local environment');
       return;
     }
     expect(res.status()).toBe(200);
-    await page.waitForLoadState('networkidle');
 
     // Verify no horizontal overflow on real restaurant
     const noHorizontalScroll = await page.evaluate(() => {

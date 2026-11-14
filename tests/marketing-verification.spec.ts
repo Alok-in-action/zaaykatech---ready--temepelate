@@ -12,6 +12,19 @@ test.describe('Marketing Website Integration Suite', () => {
     await expect(page.locator('text=ZaaykaTech').first()).toBeVisible();
     await expect(page.locator('text=THE FUTURE OF DINING IS HERE')).toBeVisible();
 
+    // Verify SaaS Hero Headline and Description
+    await expect(page.locator('h1:has-text("Your restaurant’s digital menu. Managed in minutes.")')).toBeVisible();
+    await expect(page.locator('text=Create your QR menu, update dishes and prices, and manage everything from one simple dashboard.')).toBeVisible();
+
+    // Verify Hero CTA buttons
+    const heroSignInBtn = page.locator('section a:has-text("Sign in")').first();
+    await expect(heroSignInBtn).toBeVisible();
+    await expect(heroSignInBtn).toHaveAttribute('href', '/login');
+
+    const heroDemoBtn = page.locator('section a:has-text("View demo")').first();
+    await expect(heroDemoBtn).toBeVisible();
+    await expect(heroDemoBtn).toHaveAttribute('href', '/r/chai-point');
+
     // Verify Sections exist
     await expect(page.locator('#work')).toBeVisible();
     await expect(page.locator('#pricing')).toBeVisible();
@@ -24,12 +37,25 @@ test.describe('Marketing Website Integration Suite', () => {
     });
   });
 
-  test('Capture Homepage at 390px Mobile Viewport', async ({ page }) => {
+  test('Capture Homepage at 390px Mobile Viewport and Check Hero CTA Above Fold', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/', { waitUntil: 'networkidle' });
 
     // Verify Brand title is visible
     await expect(page.locator('text=ZaaykaTech').first()).toBeVisible();
+
+    // Verify SaaS Hero Headline
+    await expect(page.locator('h1:has-text("Your restaurant’s digital menu. Managed in minutes.")')).toBeVisible();
+
+    // Verify Hero Sign In button is visible above the fold and has >= 56px height
+    const heroSignInBtn = page.locator('section a:has-text("Sign in")').first();
+    await expect(heroSignInBtn).toBeVisible();
+    const box = await heroSignInBtn.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.height).toBeGreaterThanOrEqual(55); // allowing 1px subpixel tolerance
+      expect(box.y + box.height).toBeLessThan(844); // strictly above the fold on 844px height
+    }
 
     // Capture mobile screenshot
     await page.screenshot({
@@ -38,9 +64,19 @@ test.describe('Marketing Website Integration Suite', () => {
     });
   });
 
-  test('Verify 360px Compact Mobile Layout and Horizontal Overflow', async ({ page }) => {
+  test('Verify 360px Compact Mobile Layout, Hero CTA Above Fold, and No Horizontal Overflow', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await page.goto('/', { waitUntil: 'networkidle' });
+
+    // Verify Hero Sign In button is visible above fold on 740px height screen
+    const heroSignInBtn = page.locator('section a:has-text("Sign in")').first();
+    await expect(heroSignInBtn).toBeVisible();
+    const box = await heroSignInBtn.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.height).toBeGreaterThanOrEqual(55);
+      expect(box.y + box.height).toBeLessThan(740); // strictly above the fold on 740px screen
+    }
 
     // Verify no unexpected horizontal document overflow
     const hasHorizontalScroll = await page.evaluate(() => {

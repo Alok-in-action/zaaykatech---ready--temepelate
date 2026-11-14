@@ -12,6 +12,7 @@ interface AnimatedMarqueeHeroProps {
   images: string[];
   imageLinks?: (string | null)[];
   className?: string;
+  actions?: React.ReactNode;
 }
 
 export const AnimatedMarqueeHero: React.FC<AnimatedMarqueeHeroProps> = ({
@@ -21,6 +22,7 @@ export const AnimatedMarqueeHero: React.FC<AnimatedMarqueeHeroProps> = ({
   images,
   imageLinks,
   className,
+  actions,
 }) => {
   const FADE_IN_ANIMATION_VARIANTS = {
     hidden: { opacity: 0, y: 10 },
@@ -32,20 +34,20 @@ export const AnimatedMarqueeHero: React.FC<AnimatedMarqueeHeroProps> = ({
   return (
     <section
       className={cn(
-        "relative w-full min-h-screen md:h-screen overflow-hidden bg-background flex flex-col items-center justify-start text-center px-4 pt-28 md:pt-32",
+        "relative w-full min-h-screen md:h-screen overflow-hidden bg-background flex flex-col items-center justify-start text-center px-4 pt-20 sm:pt-24 md:pt-32",
         className
       )}
     >
-      <div className="z-10 flex flex-col items-center w-full max-w-5xl pb-[36vh] md:pb-[40vh]">
+      <div className="z-10 flex flex-col items-center w-full max-w-5xl pb-36 sm:pb-40 md:pb-[38vh]">
 
         {/* ZaaykaTech Brand Name */}
         <motion.div
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.7, ease: "easeOut" }}
-          className="mb-4"
+          className="mb-3 sm:mb-4"
         >
-          <span className="text-5xl sm:text-7xl md:text-8xl font-extrabold tracking-tight text-foreground select-none font-headline leading-none">
+          <span className="text-4xl sm:text-6xl md:text-8xl font-extrabold tracking-tight text-foreground select-none font-headline leading-none">
             ZaaykaTech
           </span>
         </motion.div>
@@ -103,11 +105,23 @@ export const AnimatedMarqueeHero: React.FC<AnimatedMarqueeHeroProps> = ({
           initial="hidden"
           animate="show"
           variants={FADE_IN_ANIMATION_VARIANTS}
-          transition={{ delay: 0.5 }}
-          className="mt-4 max-w-xl text-sm md:text-base text-muted-foreground px-4 text-center"
+          transition={{ delay: 0.3 }}
+          className="mt-3 md:mt-4 max-w-xl text-sm sm:text-base text-muted-foreground px-4 text-center leading-relaxed"
         >
           {description}
         </motion.p>
+
+        {actions && (
+          <motion.div
+            initial="hidden"
+            animate="show"
+            variants={FADE_IN_ANIMATION_VARIANTS}
+            transition={{ delay: 0.4 }}
+            className="mt-6 md:mt-8 w-full max-w-md px-4 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 z-20"
+          >
+            {actions}
+          </motion.div>
+        )}
       </div>
 
       <div className="absolute bottom-0 left-0 w-full h-[30vh] md:h-2/5 [mask-image:linear-gradient(to_bottom,transparent,black_20%,black_80%,transparent)] pointer-events-none">
