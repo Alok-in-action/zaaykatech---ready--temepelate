@@ -47,6 +47,7 @@ export const RestaurantBrandingSchema = z.object({
 );
 
 export const RestaurantThemeSchema = z.object({
+  theme_id: z.string().optional(),
   primary_color: z.string().regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/, 'Invalid hex color').default('#8B4A27'),
   accent_color: z.string().regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/, 'Invalid hex color').default('#D2691E'),
   background_color: z.string().regex(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/, 'Invalid hex color').default('#FAF8F5'),

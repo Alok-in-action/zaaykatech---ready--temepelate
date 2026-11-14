@@ -2,8 +2,9 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { cache } from 'react';
 import { resolveTenantBySlug } from '@/lib/tenant/resolver';
-import PublicMenu from '@/components/public-menu/PublicMenu';
+import MenuClient from '@/app/MenuClient';
 import ExpiredNotice from '@/components/public-menu/ExpiredNotice';
+import { adaptDatabaseToTemplateMenu } from '@/lib/tenant/menu-adapter';
 
 // Request-memoized tenant resolver for per-request deduplication between generateMetadata and Page
 const getCachedTenantBySlug = cache(async (slug: string) => resolveTenantBySlug(slug));
@@ -80,17 +81,21 @@ export default async function PublicMenuPage({ params }: PageProps) {
     menu: `https://zaaykatech.com/r/${slug}`,
   };
 
+  const { sections, theme } = adaptDatabaseToTemplateMenu(
+    tenantData.restaurant,
+    tenantData.categories,
+    tenantData.items
+  );
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <PublicMenu
-        restaurant={tenantData.restaurant}
-        categories={tenantData.categories}
-        items={tenantData.items}
-      />
+      <main>
+        <MenuClient initialSections={sections} initialTheme={theme} />
+      </main>
     </>
   );
 }

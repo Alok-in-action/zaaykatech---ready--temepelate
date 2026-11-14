@@ -117,4 +117,24 @@ test.describe('Mobile Onboarding Responsive Layout & Flow', () => {
     });
     expect(noHorizontalScrollStep2).toBe(true);
   });
+
+  test('Capture Before Screenshots at 390px', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    // 1. /test-mobile-onboarding
+    await page.goto('/test-mobile-onboarding');
+    await page.waitForSelector('#restaurant-name');
+    await page.screenshot({
+      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/before-onboarding-390px.png',
+      fullPage: true,
+    });
+
+    // 2. /owner (redirects to /owner/onboarding when unauthenticated)
+    await page.goto('/owner');
+    await page.waitForTimeout(1000);
+    await page.screenshot({
+      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/before-owner-390px.png',
+      fullPage: true,
+    });
+  });
 });

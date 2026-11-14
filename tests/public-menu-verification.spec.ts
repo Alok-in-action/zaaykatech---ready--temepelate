@@ -1,0 +1,154 @@
+import { test, expect } from '@playwright/test';
+
+test.describe('Public Menu & Owner Regression Suite', () => {
+  test('Capture After Screenshots of Owner and Onboarding at 390px', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    // 1. /test-mobile-onboarding
+    await page.goto('/test-mobile-onboarding');
+    await page.waitForSelector('#restaurant-name');
+    await page.screenshot({
+      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/after-onboarding-390px.png',
+      fullPage: true,
+    });
+
+    // 2. /owner (redirects to /owner/onboarding when unauthenticated)
+    await page.goto('/owner');
+    await page.waitForTimeout(1000);
+    await page.screenshot({
+      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/after-owner-390px.png',
+      fullPage: true,
+    });
+  });
+
+  test('Public Menu at /r/demo - 390px Mobile Viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/r/demo');
+    await page.waitForLoadState('networkidle');
+
+    // Verify no horizontal overflow
+    const noHorizontalScroll = await page.evaluate(() => {
+      return document.documentElement.scrollWidth <= window.innerWidth + 1;
+    });
+    expect(noHorizontalScroll).toBe(true);
+
+    // Verify restaurant header is rendered
+    const headerTitle = page.locator('header');
+    await expect(headerTitle).toBeVisible();
+
+    // Verify categories with font-script headers
+    const scriptHeadings = page.locator('h3.font-script');
+    const headingCount = await scriptHeadings.count();
+    expect(headingCount).toBeGreaterThan(0);
+
+    // Verify currency symbol ₹ is present on prices
+    const prices = page.locator('text=/₹\\d+/');
+    const priceCount = await prices.count();
+    expect(priceCount).toBeGreaterThan(0);
+
+    // Verify ZaaykaTech credit in footer
+    const creditLink = page.locator('footer a[href="https://zaaykatech.com"]');
+    await expect(creditLink).toBeVisible();
+
+    // Capture screenshot at 390px
+    await page.screenshot({
+      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/saas-menu-390px.png',
+      fullPage: true,
+    });
+  });
+
+  test('Real Restaurant with Custom Categories at /r/chai-point - 390px', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/r/chai-point');
+    await page.waitForLoadState('networkidle');
+
+    // Verify no horizontal overflow on real restaurant
+    const noHorizontalScroll = await page.evaluate(() => {
+      return document.documentElement.scrollWidth <= window.innerWidth + 1;
+    });
+    expect(noHorizontalScroll).toBe(true);
+
+    // Verify header with restaurant name
+    const header = page.locator('header');
+    await expect(header).toBeVisible();
+
+    // Verify custom Indian restaurant categories (Thali, Drinks, Soup, etc.)
+    const scriptHeadings = page.locator('h3.font-script');
+    const headingCount = await scriptHeadings.count();
+    expect(headingCount).toBeGreaterThan(5);
+
+    // Verify currency symbol ₹ is present on prices
+    const prices = page.locator('text=/₹\\d+/');
+    const priceCount = await prices.count();
+    expect(priceCount).toBeGreaterThan(10);
+
+    // Capture screenshot at 390px
+    await page.screenshot({
+      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/chai-point-390px.png',
+      fullPage: true,
+    });
+  });
+
+  test('Public Menu at /r/demo - 1280px Desktop Viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/r/demo');
+    await page.waitForLoadState('networkidle');
+
+    // Verify desktop header
+    const header = page.locator('header');
+    await expect(header).toBeVisible();
+
+    // Capture screenshot at 1280px
+    await page.screenshot({
+      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/saas-menu-1280px.png',
+      fullPage: true,
+    });
+  });
+
+  test('Template01 Reference at /test-template01 - 390px and 1280px', async ({ page }) => {
+    // 390px
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/test-template01');
+    await page.waitForLoadState('networkidle');
+    await page.screenshot({
+      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/template01-390px.png',
+      fullPage: true,
+    });
+
+    // 1280px
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/test-template01');
+    await page.waitForLoadState('networkidle');
+    await page.screenshot({
+      path: '/Users/alokkhamora/.gemini/antigravity/brain/c981519c-7047-4ad2-9bee-2b9374da6548/screenshots/template01-1280px.png',
+      fullPage: true,
+    });
+  });
+
+  test('Quick Links Menu Interactions (Call, WhatsApp, Owner Portal)', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/r/demo');
+    await page.waitForLoadState('networkidle');
+
+    // Click Hamburger menu button in header
+    const hamburgerBtn = page.locator('header button[aria-label="Open menu"]');
+    await expect(hamburgerBtn).toBeVisible();
+    await hamburgerBtn.click();
+
+    // Verify Quick Links drawer opens
+    const quickLinksHeader = page.locator('h2:has-text("Quick Links")');
+    await expect(quickLinksHeader).toBeVisible();
+
+    // Verify Call Us link has tel: protocol
+    const callLink = page.locator('nav a[href^="tel:"]');
+    await expect(callLink).toBeVisible();
+
+    // Verify WhatsApp link exists
+    const waLink = page.locator('nav a:has-text("WhatsApp")');
+    await expect(waLink).toBeVisible();
+
+    // Verify Owner Portal link exists
+    const ownerLink = page.locator('nav a:has-text("Owner Portal")');
+    await expect(ownerLink).toBeVisible();
+  });
+});

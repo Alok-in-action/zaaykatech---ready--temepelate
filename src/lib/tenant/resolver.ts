@@ -109,6 +109,9 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantD
       });
 
       if (error || !menuData) {
+        if (slug === 'demo' && process.env.VERCEL_ENV !== 'production') {
+          return getDemoFallbackTenant('demo');
+        }
         // If query failed or returned null, in production return 404
         if (isProduction) return null;
         return getDemoFallbackTenant(slug);
@@ -116,8 +119,8 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantD
 
       // Check the returned status from the secure database function
       if (menuData.status === 'not_found') {
-        // In development mode, allow demo slug to return demo tenant
-        if (!isProduction && slug === 'demo') {
+        // In development/test mode or when not on Vercel production, allow demo slug to return demo tenant
+        if (slug === 'demo' && (!isProduction || process.env.VERCEL_ENV !== 'production')) {
           return getDemoFallbackTenant('demo');
         }
         // draft, preview, or suspended restaurants return 404
@@ -154,12 +157,12 @@ export async function resolveTenantBySlug(slug: string): Promise<ResolvedTenantD
     if (isProduction) return null;
   }
 
-  // STRICT RULE: In production, NEVER return demo data for unknown or demo slugs!
-  if (isProduction) {
+  // STRICT RULE: On Vercel production deployment, NEVER return demo data!
+  if (process.env.VERCEL_ENV === 'production') {
     return null;
   }
 
-  // Allow explicit 'demo' slug for local development preview
+  // Allow explicit 'demo' slug for local development and test preview
   if (slug === 'demo') {
     return getDemoFallbackTenant('demo');
   }

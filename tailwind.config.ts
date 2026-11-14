@@ -10,7 +10,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        heading: ['var(--font-heading)', 'serif'],
+        body: ['var(--font-body)', 'sans-serif'],
+        playfair: ['var(--font-playfair)', 'Playfair Display', 'serif'],
         sans: [
+          'Montserrat',
           'system-ui',
           '-apple-system',
           'BlinkMacSystemFont',
@@ -20,10 +24,12 @@ export default {
           'Arial',
           'sans-serif',
         ],
-        script: ['cursive', 'system-ui'],
+        script: ['Great Vibes', 'cursive', 'system-ui'],
         code: ['monospace'],
       },
       colors: {
+        surface: 'hsl(var(--color-surface) / <alpha-value>)',
+        text: 'hsl(var(--color-text) / <alpha-value>)',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         card: {
@@ -74,6 +80,17 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
+      },
+      spacing: {
+        xs: 'var(--spacing-xs, 0.5rem)',
+        sm: 'var(--spacing-sm, 1rem)',
+        md: 'var(--spacing-md, 1.5rem)',
+        lg: 'var(--spacing-lg, 2rem)',
+        xl: 'var(--spacing-xl, 3rem)',
+      },
+      boxShadow: {
+        card: 'var(--shadow-card, 0 4px 6px -1px rgba(0, 0, 0, 0.05))',
+        floating: 'var(--shadow-floating, 0 10px 25px -5px rgba(0, 0, 0, 0.1))',
       },
       borderRadius: {
         lg: 'var(--radius)',

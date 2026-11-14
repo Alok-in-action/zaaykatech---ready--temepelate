@@ -72,6 +72,7 @@ export interface RestaurantSocialLinks {
 export type CardStyle = 'warm_editorial' | 'minimalist' | 'modern_dark' | 'heritage';
 
 export interface RestaurantTheme {
+  theme_id?: string;
   primary_color: string;
   accent_color: string;
   background_color: string;

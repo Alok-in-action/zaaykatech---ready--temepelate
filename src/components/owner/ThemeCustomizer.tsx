@@ -10,6 +10,7 @@ interface ThemeCustomizerProps {
 }
 
 const PRESET_PALETTES: Array<{
+  id: string;
   name: string;
   primary: string;
   accent: string;
@@ -18,42 +19,65 @@ const PRESET_PALETTES: Array<{
   description: string;
 }> = [
   {
-    name: 'Warm Artisanal',
-    primary: '#8B4A27',
-    accent: '#D2691E',
-    background: '#FAF8F5',
+    id: 'cappuccino',
+    name: 'Cappuccino',
+    primary: '#914C2B',
+    accent: '#B86B3D',
+    background: '#F5EBDD',
     cardStyle: 'warm_editorial',
-    description: 'Warm terracotta & creamy paper for cafes and bistros',
+    description: 'Warm cream tones with handcrafted terracotta accents',
   },
   {
-    name: 'Royal Heritage',
-    primary: '#781D22',
-    accent: '#D4AF37',
-    background: '#FDFBF7',
-    cardStyle: 'heritage',
-    description: 'Deep ruby crimson and antique gold for fine dining',
-  },
-  {
-    name: 'Botanical Bistro',
-    primary: '#2D4A22',
-    accent: '#8F9779',
-    background: '#F8FAF6',
-    cardStyle: 'minimalist',
-    description: 'Earthy pine & sage tones for organic eateries',
-  },
-  {
-    name: 'Midnight Velvet',
-    primary: '#D4AF37',
-    accent: '#E5C158',
-    background: '#1A1A1A',
+    id: 'dark-coffee-luxury',
+    name: 'Dark Coffee Luxury',
+    primary: '#C77A32',
+    accent: '#E4A64A',
+    background: '#120D09',
     cardStyle: 'modern_dark',
-    description: 'Luminous gold on carbon obsidian for cocktail bars',
+    description: 'High-end specialty coffee bar with deep espresso and gold',
+  },
+  {
+    id: 'botanical',
+    name: 'Botanical',
+    primary: '#426B45',
+    accent: '#A7B88A',
+    background: '#F1F3E8',
+    cardStyle: 'minimalist',
+    description: 'Organic café with sage and cream botanical accents',
+  },
+  {
+    id: 'minimal-editorial',
+    name: 'Minimal Editorial',
+    primary: '#1A1A1A',
+    accent: '#404040',
+    background: '#FFFFFF',
+    cardStyle: 'minimalist',
+    description: 'Clean modern black & white editorial typography',
+  },
+  {
+    id: 'terracotta-mediterranean',
+    name: 'Terracotta Mediterranean',
+    primary: '#C85A32',
+    accent: '#D97736',
+    background: '#F7F2EA',
+    cardStyle: 'warm_editorial',
+    description: 'Sun-baked clay, warm sand, and olive tones',
+  },
+  {
+    id: 'midnight-blue',
+    name: 'Midnight Blue',
+    primary: '#1E3A5F',
+    accent: '#4A90E2',
+    background: '#0D1B2A',
+    cardStyle: 'modern_dark',
+    description: 'Deep navy night with crisp silver and sky blue',
   },
 ];
 
 export function ThemeCustomizer({ theme, onChange }: ThemeCustomizerProps) {
   const applyPreset = (preset: (typeof PRESET_PALETTES)[0]) => {
     onChange({
+      theme_id: preset.id,
       primary_color: preset.primary,
       accent_color: preset.accent,
       background_color: preset.background,
@@ -68,15 +92,16 @@ export function ThemeCustomizer({ theme, onChange }: ThemeCustomizerProps) {
         <div className="flex items-center gap-2 mb-3">
           <Palette className="w-4 h-4 text-[#8B4A27]" />
           <label className="text-xs font-semibold text-stone-800 tracking-tight">
-            Curated Design Presets
+            Curated Design Presets (6 Themes)
           </label>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {PRESET_PALETTES.map((preset) => {
             const isSelected =
-              theme.primary_color === preset.primary &&
-              theme.background_color === preset.background;
+              theme.theme_id === preset.id ||
+              (theme.primary_color?.toLowerCase() === preset.primary.toLowerCase() &&
+                theme.background_color?.toLowerCase() === preset.background.toLowerCase());
 
             return (
               <button
