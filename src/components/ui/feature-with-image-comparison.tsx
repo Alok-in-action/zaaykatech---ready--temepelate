@@ -103,7 +103,8 @@ function FeatureWithImageComparison({
                             src={afterImage.src}
                             alt={afterImage.alt}
                             fill
-                            priority
+                            loading="lazy"
+                            sizes="(max-width: 768px) 100vw, 800px"
                             draggable={false}
                             className="absolute inset-0 w-full h-full object-cover rounded-2xl select-none"
                         />
@@ -113,7 +114,8 @@ function FeatureWithImageComparison({
                             src={beforeImage.src}
                             alt={beforeImage.alt}
                             fill
-                            priority
+                            loading="lazy"
+                            sizes="(max-width: 768px) 100vw, 800px"
                             draggable={false}
                             className="absolute inset-0 w-full h-full object-cover rounded-2xl select-none z-10"
                             style={{ clipPath: `inset(0 ${100 - inset}% 0 0)` }}

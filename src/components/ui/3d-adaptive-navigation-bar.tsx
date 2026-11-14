@@ -21,10 +21,10 @@ export const PillBase: React.FC = () => {
 
     const navItems: NavItem[] = [
         { label: 'Home', id: 'home' },
+        { label: 'Preview', id: 'preview' },
         { label: 'Why Us', id: 'features' },
-        { label: 'Our Work', id: 'work' },
         { label: 'Pricing', id: 'pricing' },
-        { label: 'Contact', id: 'contact' },
+        { label: 'Sign In', id: 'login' },
     ]
 
     // Detect active section on mount and path change
@@ -45,7 +45,7 @@ export const PillBase: React.FC = () => {
     const pillWidth = useSpring(140, { stiffness: 220, damping: 25, mass: 1 })
     const pillShift = useSpring(0, { stiffness: 220, damping: 25, mass: 1 })
 
-    // Handle hover expansion
+    // Handle hover / tap expansion
     useEffect(() => {
         if (hovering) {
             setExpanded(true)
@@ -54,19 +54,30 @@ export const PillBase: React.FC = () => {
             if (hoverTimeoutRef.current) {
                 clearTimeout(hoverTimeoutRef.current)
             }
-        } else {
-            hoverTimeoutRef.current = setTimeout(() => {
-                setExpanded(false)
-                pillWidth.set(140)
-            }, 600)
+        } else if (!expanded) {
+            pillWidth.set(140)
         }
+    }, [hovering, expanded, pillWidth])
 
-        return () => {
-            if (hoverTimeoutRef.current) {
-                clearTimeout(hoverTimeoutRef.current)
+    // Click outside to collapse on touch devices
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setExpanded(false)
+                setHovering(false)
+                pillWidth.set(140)
             }
         }
-    }, [hovering, pillWidth])
+
+        if (expanded) {
+            document.addEventListener('mousedown', handleClickOutside)
+            document.addEventListener('touchstart', handleClickOutside)
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+            document.removeEventListener('touchstart', handleClickOutside)
+        }
+    }, [expanded, pillWidth])
 
     const handleMouseEnter = () => {
         setHovering(true)
@@ -74,6 +85,16 @@ export const PillBase: React.FC = () => {
 
     const handleMouseLeave = () => {
         setHovering(false)
+        setExpanded(false)
+        pillWidth.set(140)
+    }
+
+    const toggleNav = () => {
+        if (!expanded) {
+            setExpanded(true)
+            const newWidth = typeof window !== 'undefined' ? Math.min(580, window.innerWidth - 32) : 580
+            pillWidth.set(newWidth)
+        }
     }
 
     const handleSectionClick = (sectionId: string) => {
@@ -82,8 +103,21 @@ export const PillBase: React.FC = () => {
         prevSectionRef.current = sectionId
         setActiveSection(sectionId)
 
+        // Collapse the pill immediately after selection
+        setExpanded(false)
+        setHovering(false)
+        pillWidth.set(140)
+        if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current)
+        }
+
         // Handle navigation
         const isPricingPage = window.location.pathname === '/pricing'
+
+        if (sectionId === 'login') {
+            window.location.href = '/login'
+            return
+        }
 
         if (sectionId === 'pricing') {
             if (!isPricingPage) {
@@ -96,7 +130,7 @@ export const PillBase: React.FC = () => {
                 window.scrollTo({ top: 0, behavior: 'smooth' })
             }
         } else {
-            // features, work, contact
+            // preview, features, work, contact
             if (isPricingPage) {
                 window.location.href = `/#${sectionId}`
             } else {
@@ -106,9 +140,6 @@ export const PillBase: React.FC = () => {
                 }
             }
         }
-
-        // Collapse the pill after selection
-        setHovering(false)
 
         // Reset transition state after animation completes
         setTimeout(() => {
@@ -120,9 +151,10 @@ export const PillBase: React.FC = () => {
 
     return (
         <motion.nav
+            onClick={toggleNav}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            className="relative rounded-full"
+            className="relative rounded-full cursor-pointer select-none"
             style={{
                 width: pillWidth,
                 height: '56px',

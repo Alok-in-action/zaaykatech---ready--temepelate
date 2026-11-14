@@ -11,7 +11,6 @@ import {
     X,
     Minus,
 } from "lucide-react";
-import { FeatureWithImageComparison } from "@/components/ui/feature-with-image-comparison";
 import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
 import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
@@ -20,55 +19,55 @@ import { cn } from "@/lib/utils";
 const features = [
     {
         Icon: Smartphone,
-        name: "Modern Customer Experience",
-        description: "Provide customers with a sleek, modern way to view your menu on any device.",
+        name: "Instant Mobile Experience",
+        description: "Guests scan table QR codes and browse your menu immediately. Zero app downloads or sign-ins required.",
         href: "#features",
-        cta: "Learn more",
+        cta: "Explore",
         background: null,
         className: "lg:col-start-1 lg:col-end-2 lg:row-start-1 lg:row-end-3",
     },
     {
         Icon: ShieldCheck,
-        name: "Contactless & Hygienic",
-        description: "Eliminate shared touchpoints with 100% contactless menu viewing.",
+        name: "100% Hygienic & Contactless",
+        description: "Eliminate stained, worn-out paper booklets and shared touchpoints at your dining tables.",
         href: "#features",
-        cta: "Learn more",
+        cta: "Explore",
         background: null,
         className: "lg:col-start-2 lg:col-end-3 lg:row-start-1 lg:row-end-2",
     },
     {
         Icon: RefreshCw,
-        name: "Easy Menu Updates",
-        description: "Update your menu items and prices instantly without reprinting costs.",
+        name: "Instant Price & Item Edits",
+        description: "Update dishes, adjust prices, or mark items 86'd in seconds from your phone dashboard with zero reprint costs.",
         href: "#features",
-        cta: "Learn more",
+        cta: "Explore",
         background: null,
         className: "lg:col-start-3 lg:col-end-4 lg:row-start-1 lg:row-end-2",
     },
     {
         Icon: Palette,
-        name: "Brand-Matched Design",
-        description: "Every menu website is fully customized to match your restaurant's brand.",
+        name: "Custom Brand Identity",
+        description: "Highlight your logo, signature theme colors, and custom restaurant typography on every guest device.",
         href: "#features",
-        cta: "Learn more",
+        cta: "Explore",
         background: null,
         className: "lg:col-start-2 lg:col-end-4 lg:row-start-2 lg:row-end-3",
     },
     {
         Icon: Share2,
-        name: "Social Media Sharing",
-        description: "Customers can easily share your menu with friends and family.",
+        name: "Smart Dietary & Search Filters",
+        description: "Help customers quickly filter by Vegetarian, Non-Veg, or Vegan, and search dishes in seconds.",
         href: "#features",
-        cta: "Learn more",
+        cta: "Explore",
         background: null,
         className: "lg:col-start-1 lg:col-end-3 lg:row-start-3 lg:row-end-4",
     },
     {
         Icon: BadgeDollarSign,
-        name: "Affordable Annual Pricing",
-        description: "Simple yearly pricing with no hidden fees or monthly subscriptions.",
-        href: "#features",
-        cta: "Learn more",
+        name: "Flat ₹2,999/yr SaaS Pricing",
+        description: "One predictable annual fee. Zero per-order commissions, zero percentage cuts, and no hidden platform charges.",
+        href: "#pricing",
+        cta: "View Pricing",
         background: null,
         className: "lg:col-start-3 lg:col-end-4 lg:row-start-3 lg:row-end-4",
     },
@@ -92,7 +91,7 @@ const vsTraditional: CompareRow[] = [
         traditional: "no",
         traditionalNote: "High (Reprints)",
         zaaykatech: "yes",
-        zaaykatechNote: "2 free yearly updates",
+        zaaykatechNote: "Unlimited live updates",
     },
     {
         feature: "Hygiene",
@@ -287,31 +286,12 @@ export default function WhyChooseZaaykaTech() {
                 </div>
 
                 {/* Feature Cards with Bento Grid */}
-                <div className="mb-24">
+                <div className="mb-20">
                     <BentoGrid className="lg:grid-rows-3">
                         {features.map((feature) => (
                             <BentoCard key={feature.name} {...feature} />
                         ))}
                     </BentoGrid>
-                </div>
-
-                {/* Image Comparison Slider */}
-                <div className="mb-24 max-w-4xl mx-auto">
-                    <FeatureWithImageComparison
-                        badge="See the Difference"
-                        title="Digital vs Traditional Menu"
-                        description="Drag the slider to compare a traditional paper menu with ZaaykaTech's modern, interactive digital menu experience."
-                        beforeImage={{
-                            src: "/desktop/menu.png",
-                            alt: "Traditional paper menu at restaurant",
-                        }}
-                        afterImage={{
-                            src: "/desktop/qr.png",
-                            alt: "Modern digital QR menu on phone",
-                        }}
-                        beforeLabel="Traditional Menu"
-                        afterLabel="ZaaykaTech QR"
-                    />
                 </div>
 
                 {/* Comparison Section with Toggle */}

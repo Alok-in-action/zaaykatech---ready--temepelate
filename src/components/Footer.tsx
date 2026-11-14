@@ -24,7 +24,7 @@ const footerLinks: FooterSection[] = [
 			{ title: 'Features', href: '#features' },
 			{ title: 'Pricing', href: '/pricing' },
 			{ title: 'Testimonials', href: '#testimonials' },
-			{ title: 'Demo', href: '#demo' },
+			{ title: 'Live Preview', href: '#preview' },
 		],
 	},
 	{
