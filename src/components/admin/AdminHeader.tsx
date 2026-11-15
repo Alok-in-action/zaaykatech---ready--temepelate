@@ -128,7 +128,7 @@ export function AdminHeader({ userEmail }: AdminHeaderProps) {
                 href={item.href}
                 className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl whitespace-nowrap transition-all ${
                   isActive
-                    ? 'bg-[#8B4A27] text-white font-semibold shadow-xs'
+                    ? 'bg-[#4338CA] text-white font-semibold shadow-xs'
                     : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100/80'
                 }`}
               >

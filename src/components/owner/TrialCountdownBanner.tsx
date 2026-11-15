@@ -137,12 +137,12 @@ export function TrialCountdownBanner({
 
   // Active Trial State
   return (
-    <aside aria-label="Trial Countdown" className="bg-amber-500/10 border-b border-amber-500/20 text-stone-900 px-4 py-2 text-xs font-medium backdrop-blur-md">
+    <aside aria-label="Trial Countdown" className="bg-indigo-50/80 border-b border-indigo-200/60 text-stone-900 px-4 py-2 text-xs font-medium backdrop-blur-md">
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Clock className="w-3.5 h-3.5 text-[#8B4A27] animate-pulse shrink-0" />
+          <Clock className="w-3.5 h-3.5 text-indigo-700 animate-pulse shrink-0" />
           <span>
-            <strong className="text-[#8B4A27]">24-Hour Free Trial:</strong>{' '}
+            <strong className="text-indigo-950">Your 24-hour trial is active</strong> —{' '}
             {timeLeft.isExpired
               ? 'Trial expiring shortly'
               : `${timeLeft.hours}h ${timeLeft.minutes}m remaining`}
@@ -154,9 +154,9 @@ export function TrialCountdownBanner({
         <div className="flex items-center gap-2">
           <RazorpayCheckoutButton
             restaurantId={restaurantId}
-            label="Keep Live (₹2,999/yr)"
+            label="Upgrade Now — ₹2,999/yr"
             variant="default"
-            className="bg-[#8B4A27] hover:bg-[#743c1e] text-white h-7 text-[11px] font-bold px-3.5 rounded-full shadow-2xs"
+            className="bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white h-7 text-[11px] font-bold px-3.5 rounded-full shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 transition-all"
           />
           <Link
             href="/owner/billing"

@@ -28,8 +28,21 @@ export default function LoginPage() {
         setErrorMsg('Unable to initialize your owner profile. Please try logging in again.');
       } else if (err === 'profile_fetch_failed') {
         setErrorMsg('Unable to load your account profile. Please check your connection and try again.');
-      } else if (err === 'auth_exchange_failed') {
+      } else if (err === 'auth_exchange_failed' || err === 'auth_code_missing') {
         setErrorMsg('Authentication expired or failed. Please sign in again.');
+      } else if (err) {
+        try {
+          setErrorMsg(decodeURIComponent(err));
+        } catch {
+          setErrorMsg(err);
+        }
+      }
+
+      if (err) {
+        // Clean up error param from the URL so page refresh or retry doesn't persist stale error
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('error');
+        window.history.replaceState({}, '', cleanUrl.toString());
       }
     }
   }, []);

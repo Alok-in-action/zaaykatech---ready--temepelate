@@ -292,7 +292,7 @@ export default function SettingsPage() {
         <div className="pt-4 flex items-center justify-between border-t border-stone-100">
           <Link
             href="/owner/onboarding?edit=true"
-            className="text-xs font-semibold text-[#8B4A27] hover:underline"
+            className="text-xs font-semibold text-[#4338CA] hover:underline"
           >
             Launch Step-by-Step Setup Wizard →
           </Link>
@@ -300,7 +300,7 @@ export default function SettingsPage() {
           <button
             onClick={handleSaveDetails}
             disabled={loading}
-            className="px-6 py-2.5 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-bold rounded-2xl shadow-sm transition-all"
+            className="px-6 py-2.5 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-bold rounded-2xl shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 disabled:opacity-60 cursor-pointer"
           >
             {loading ? 'Saving...' : 'Save Settings'}
           </button>

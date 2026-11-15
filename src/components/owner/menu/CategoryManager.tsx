@@ -105,7 +105,7 @@ export function CategoryManager({
 
         <button
           onClick={onOpenCreateDialog}
-          className="px-3.5 py-1.5 bg-[#8B4A27] hover:bg-[#743c1e] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press inline-flex items-center gap-1 cursor-pointer"
+          className="px-3.5 py-1.5 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press inline-flex items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Add Category</span>
@@ -124,7 +124,7 @@ export function CategoryManager({
               onClick={() => onSelectCategory(cat.id)}
               className={`flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs cursor-pointer transition-all flex-shrink-0 apple-press ${
                 isSelected
-                  ? 'border-[#8B4A27] bg-[#8B4A27]/10 text-[#8B4A27] font-bold shadow-2xs'
+                  ? 'border-[#4338CA] bg-[#4338CA]/10 text-[#4338CA] font-bold shadow-2xs'
                   : 'border-stone-200 bg-stone-50/70 hover:bg-stone-100 text-stone-700'
               }`}
             >

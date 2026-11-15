@@ -131,7 +131,7 @@ export function ItemManager({
           <button
             onClick={onOpenAddItem}
             disabled={categories.length === 0}
-            className="px-3.5 py-2 bg-[#8B4A27] hover:bg-[#743c1e] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press disabled:opacity-40 flex-shrink-0 inline-flex items-center gap-1 cursor-pointer"
+            className="px-3.5 py-2 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press disabled:opacity-40 flex-shrink-0 inline-flex items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Add Dish</span>
@@ -296,7 +296,7 @@ export function ItemManager({
             {categories.length > 0 && (
               <button
                 onClick={onOpenAddItem}
-                className="mt-4 px-4 py-2 bg-[#8B4A27] hover:bg-[#743c1e] text-white text-xs font-semibold rounded-xl shadow-xs apple-press transition-all cursor-pointer"
+                className="mt-4 px-4 py-2 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-semibold rounded-xl shadow-xs apple-press transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
               >
                 + Add Dish Now
               </button>

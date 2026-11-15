@@ -52,7 +52,7 @@ export function AccessDenied({ reason, userId, email }: AccessDeniedProps) {
         <div className="flex flex-col gap-3">
           <Link
             href="/owner"
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#8B4A27] text-white font-medium text-sm hover:bg-[#703b1f] transition-all shadow-xs"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white font-medium text-sm transition-all shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
           >
             <ArrowLeft className="w-4 h-4" /> Return to Restaurant Dashboard
           </Link>

@@ -530,7 +530,7 @@ export function ItemEditorDialog({
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 bg-[#8B4A27] hover:bg-[#743c1e] text-white text-xs font-bold rounded-xl shadow-xs transition-all apple-press disabled:opacity-60 inline-flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-bold rounded-xl shadow-xs transition-all apple-press disabled:opacity-60 inline-flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             >
               {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>{loading ? 'Saving...' : isEditing ? 'Update Dish' : 'Add Dish'}</span>

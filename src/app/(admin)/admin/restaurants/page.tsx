@@ -86,7 +86,7 @@ export default async function AdminRestaurantsPage({ searchParams }: PageProps) 
                 href={queryUrl}
                 className={`px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition-all ${
                   isSelected
-                    ? 'bg-[#8B4A27] text-white font-semibold shadow-xs'
+                    ? 'bg-[#4338CA] text-white font-semibold shadow-xs'
                     : 'text-stone-600 bg-stone-100 hover:bg-stone-200/80'
                 }`}
               >

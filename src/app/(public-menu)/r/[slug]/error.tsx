@@ -28,7 +28,7 @@ export default function PublicMenuError({
         </p>
         <button
           onClick={() => reset()}
-          className="w-full py-2.5 px-4 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-2xl shadow-xs transition-all apple-press flex items-center justify-center gap-1.5"
+          className="w-full py-2.5 px-4 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-semibold rounded-2xl shadow-xs transition-all apple-press flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span>Try Again</span>

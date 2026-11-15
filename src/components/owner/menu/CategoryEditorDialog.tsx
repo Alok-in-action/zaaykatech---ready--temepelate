@@ -140,7 +140,7 @@ export function CategoryEditorDialog({
               type="button"
               onClick={() => setIsActive(!isActive)}
               className={`w-12 h-7 rounded-full transition-colors duration-200 relative p-0.5 cursor-pointer active:scale-[0.97] ${
-                isActive ? 'bg-[#8B4A27]' : 'bg-stone-300'
+                isActive ? 'bg-[#4338CA]' : 'bg-stone-300'
               }`}
             >
               <div
@@ -163,7 +163,7 @@ export function CategoryEditorDialog({
             <button
               type="submit"
               disabled={loading}
-              className="min-h-[48px] px-6 py-2.5 bg-[#8B4A27] hover:bg-[#743c1e] text-white text-sm font-semibold rounded-2xl shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.97]"
+              className="min-h-[48px] px-6 py-2.5 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-sm font-semibold rounded-2xl shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               <span>{isEditing ? 'Save Changes' : 'Create Category'}</span>
