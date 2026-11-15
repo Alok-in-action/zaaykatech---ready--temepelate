@@ -1,58 +1,145 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
+import { createServiceClient } from '@/lib/supabase/service';
+import { cookies } from 'next/headers';
+import { getPlatformAdminAllowlist } from '@/lib/admin/auth';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const rawNext = searchParams.get('next') || '/owner';
   // Strictly enforce safe internal redirect path (no protocol, no double slashes)
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/owner';
+  const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/owner';
 
-  if (code) {
-    const supabase = await createClient();
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  // Determine canonical public origin
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+  const isLocalEnv = process.env.NODE_ENV === 'development';
+  const publicOrigin = isLocalEnv
+    ? origin
+    : forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : origin;
 
-    if (!error && data.user) {
-      // Ensure profile exists for this authenticated user
-      const { user } = data;
-      const { data: existingProfile, error: profileFetchError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .maybeSingle();
-
-      if (profileFetchError) {
-        console.error('Failed to query user profile in auth callback:', profileFetchError.message);
-        return NextResponse.redirect(`${origin}/login?error=profile_fetch_failed`);
-      }
-
-      if (!existingProfile) {
-        const { error: profileInsertError } = await supabase.from('profiles').insert({
-          auth_user_id: user.id,
-          full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Restaurant Owner',
-          phone: user.phone || null,
-          role: 'restaurant_owner',
-        });
-
-        if (profileInsertError) {
-          console.error('Failed to create user profile in auth callback:', profileInsertError.message);
-          return NextResponse.redirect(`${origin}/login?error=profile_creation_failed`);
-        }
-      }
-
-      const forwardedHost = request.headers.get('x-forwarded-host');
-      const isLocalEnv = process.env.NODE_ENV === 'development';
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
-      } else {
-        return NextResponse.redirect(`${origin}${next}`);
-      }
-    }
+  if (!code) {
+    return NextResponse.redirect(`${publicOrigin}/login?error=auth_code_missing`);
   }
 
-  // Auth error return to login
-  return NextResponse.redirect(`${origin}/login?error=auth_exchange_failed`);
-}
+  const cookieStore = await cookies();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+  // Prepare redirect response upfront so cookies from exchangeCodeForSession are written directly into its headers
+  const redirectResponse = NextResponse.redirect(new URL(safeNext, publicOrigin));
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set(name, value, options);
+          redirectResponse.cookies.set(name, value, options);
+        });
+      },
+    },
+  });
+
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (error || !data.user) {
+    console.error('Auth code exchange error:', error?.message);
+    const errParam = encodeURIComponent(error?.message || 'auth_exchange_failed');
+    return NextResponse.redirect(`${publicOrigin}/login?error=${errParam}`);
+  }
+
+  const { user } = data;
+
+  // Use service client to idempotently ensure profile exists without RLS conflicts or race conditions
+  const serviceClient = createServiceClient();
+  let profileId: string | null = null;
+
+  try {
+    const { data: existingProfile } = await serviceClient
+      .from('profiles')
+      .select('id, role')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
+
+    if (existingProfile) {
+      profileId = existingProfile.id;
+    } else {
+      // Upsert to handle concurrent trigger creation safely
+      const { data: newProfile, error: upsertErr } = await serviceClient
+        .from('profiles')
+        .upsert(
+          {
+            auth_user_id: user.id,
+            full_name:
+              user.user_metadata?.full_name || user.email?.split('@')[0] || 'Restaurant Owner',
+            phone: user.phone || null,
+            role: 'restaurant_owner',
+          },
+          { onConflict: 'auth_user_id', ignoreDuplicates: false }
+        )
+        .select('id')
+        .single();
+
+      if (!upsertErr && newProfile) {
+        profileId = newProfile.id;
+      } else {
+        // Fallback lookup if trigger beat the insert
+        const { data: retryProfile } = await serviceClient
+          .from('profiles')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .maybeSingle();
+        profileId = retryProfile?.id || null;
+      }
+    }
+  } catch (profileErr) {
+    console.warn('Profile resolution warning in callback (continuing):', profileErr);
+  }
+
+  // Check if user is a designated Platform Admin
+  const adminAllowlist = getPlatformAdminAllowlist();
+  const isPlatformAdmin = adminAllowlist.includes(user.id.toLowerCase());
+
+  // Determine intelligent destination:
+  // 1. If destination is explicitly /admin (or user is an admin requesting /admin), send directly to /admin without requiring a restaurant
+  if (safeNext.startsWith('/admin') && isPlatformAdmin) {
+    redirectResponse.headers.set('Location', `${publicOrigin}/admin`);
+    return redirectResponse;
+  }
+
+  // 2. If destination is standard /owner, determine restaurant lifecycle state
+  if (safeNext === '/owner' && profileId) {
+    const { data: activeRest } = await serviceClient
+      .from('restaurants')
+      .select('id, onboarding_status, status')
+      .eq('owner_profile_id', profileId)
+      .is('archived_at', null)
+      .maybeSingle();
+
+    if (!activeRest) {
+      // New owner: continue onboarding
+      redirectResponse.headers.set('Location', `${publicOrigin}/owner/onboarding`);
+      return redirectResponse;
+    }
+
+    if (activeRest.onboarding_status !== 'completed') {
+      // In-progress onboarding: resume onboarding
+      redirectResponse.headers.set('Location', `${publicOrigin}/owner/onboarding`);
+      return redirectResponse;
+    }
+
+    // Onboarded owner: proceed to dashboard
+    redirectResponse.headers.set('Location', `${publicOrigin}/owner`);
+    return redirectResponse;
+  }
+
+  // If explicit destination was requested, redirect there
+  redirectResponse.headers.set('Location', `${publicOrigin}${safeNext}`);
+  return redirectResponse;
+}

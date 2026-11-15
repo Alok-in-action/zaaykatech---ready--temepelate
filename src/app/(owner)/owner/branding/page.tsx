@@ -108,7 +108,7 @@ export default function BrandingPage() {
         <button
           onClick={handleSave}
           disabled={saving || initialLoading}
-          className="px-6 py-2.5 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-bold rounded-2xl shadow-sm transition-all apple-press disabled:opacity-60 flex items-center gap-1.5 shrink-0"
+          className="px-6 py-2.5 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-bold rounded-2xl shadow-sm transition-all apple-press disabled:opacity-60 flex items-center gap-1.5 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
         >
           {saving ? (
             <>

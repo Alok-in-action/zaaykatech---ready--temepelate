@@ -217,7 +217,7 @@ export function QRCodeGenerator({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
         <button
           onClick={downloadPNG}
-          className="py-3 px-4 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-bold rounded-2xl shadow-sm transition-all apple-press flex items-center justify-center gap-2"
+          className="py-3 px-4 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-bold rounded-2xl shadow-sm transition-all apple-press flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 cursor-pointer"
         >
           <Download className="w-4 h-4" />
           <span>Print-Ready PNG (1024px)</span>

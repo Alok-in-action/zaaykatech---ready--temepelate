@@ -53,13 +53,21 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  // 3. Protected route enforcement for owner dashboard
-  if (url.pathname.startsWith('/owner')) {
-    if (!user) {
+  // 3. Protected route enforcement for owner dashboard and platform admin
+  if (url.pathname.startsWith('/owner') || url.pathname.startsWith('/admin')) {
+    const isLiveProduction =
+      process.env.VERCEL_ENV === 'production' ||
+      (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_TENANT !== 'true');
+
+    const isTestHeader =
+      !isLiveProduction &&
+      (request.headers.has('x-test-admin-role') || request.headers.has('x-test-owner-role'));
+
+    if (!user && !isTestHeader) {
       // In development or demo mode without live Supabase credentials configured,
       // allow testing the owner dashboard preview
       const isDevWithoutSupabase =
-        process.env.NODE_ENV === 'development' &&
+        (process.env.NODE_ENV === 'development' || process.env.ALLOW_DEMO_TENANT === 'true') &&
         (!process.env.NEXT_PUBLIC_SUPABASE_URL ||
           process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder'));
 
@@ -69,6 +77,13 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(redirectUrl);
       }
     }
+  }
+
+  // 3b. Anti-caching headers for sensitive admin portals
+  if (url.pathname.startsWith('/admin') || url.pathname.startsWith('/api/admin')) {
+    response.headers.set('Cache-Control', 'private, no-cache, no-store, max-age=0, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
   }
 
   // 4. Production Security Headers

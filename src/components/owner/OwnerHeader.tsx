@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Restaurant } from '@/types/database';
 import { setActiveRestaurantAction, signOutAction } from '@/actions/restaurant';
 import { createClient } from '@/lib/supabase/client';
-import { ChevronDown, ExternalLink, LogOut, Plus, Store, Sparkles, ChefHat, MessageSquare } from 'lucide-react';
+import { ChevronDown, ExternalLink, LogOut, Plus, Store, Sparkles, ChefHat, MessageSquare, Loader2 } from 'lucide-react';
 
 interface OwnerHeaderProps {
   userEmail?: string;
@@ -27,15 +27,17 @@ export function OwnerHeader({ userEmail, activeRestaurant, isOnboarding }: Owner
     activeRestaurant.onboarding_status !== 'completed';
 
   const handleSignOut = async () => {
+    if (loggingOut) return;
     try {
       setLoggingOut(true);
       const supabase = createClient();
       await supabase.auth.signOut();
       await signOutAction();
-      router.push('/login');
-      router.refresh();
-    } finally {
-      setLoggingOut(false);
+      // Hard navigation flushes client cache and guarantees clean logged-out state
+      window.location.href = '/login';
+    } catch (e) {
+      console.warn('Sign out error:', e);
+      window.location.href = '/login';
     }
   };
 
@@ -76,10 +78,15 @@ export function OwnerHeader({ userEmail, activeRestaurant, isOnboarding }: Owner
             <button
               onClick={handleSignOut}
               disabled={loggingOut}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100/80 text-xs font-medium rounded-xl transition-all cursor-pointer"
+              aria-label="Sign out"
+              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-3 py-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100/80 text-xs font-semibold rounded-xl transition-all cursor-pointer disabled:opacity-50 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
               title={userEmail ? `Signed in as ${userEmail} (Click to log out)` : 'Sign Out'}
             >
-              <LogOut className="w-3.5 h-3.5" />
+              {loggingOut ? (
+                <Loader2 className="w-4 h-4 animate-spin text-neutral-600" />
+              ) : (
+                <LogOut className="w-4 h-4" />
+              )}
               <span className="hidden sm:inline">{loggingOut ? 'Signing out...' : 'Sign Out'}</span>
             </button>
           </div>
@@ -134,14 +141,14 @@ export function OwnerHeader({ userEmail, activeRestaurant, isOnboarding }: Owner
           {activeRestaurant ? (
             <Link
               href="/owner/billing"
-              className="px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press"
+              className="px-3.5 py-1.5 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             >
               Subscription
             </Link>
           ) : (
             <Link
               href="/owner/onboarding"
-              className="px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press"
+              className="px-3.5 py-1.5 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             >
               Start Onboarding
             </Link>
@@ -150,10 +157,15 @@ export function OwnerHeader({ userEmail, activeRestaurant, isOnboarding }: Owner
           <button
             onClick={handleSignOut}
             disabled={loggingOut}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100/80 text-xs font-medium rounded-xl transition-all cursor-pointer"
+            aria-label="Sign out"
+            className="inline-flex items-center justify-center gap-1.5 min-h-[44px] min-w-[44px] px-3 py-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100/80 text-xs font-semibold rounded-xl transition-all cursor-pointer disabled:opacity-50 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             title={userEmail ? `Signed in as ${userEmail} (Click to log out)` : 'Sign Out'}
           >
-            <LogOut className="w-3.5 h-3.5" />
+            {loggingOut ? (
+              <Loader2 className="w-4 h-4 animate-spin text-neutral-600" />
+            ) : (
+              <LogOut className="w-4 h-4" />
+            )}
             <span className="hidden sm:inline">{loggingOut ? 'Signing out...' : 'Sign Out'}</span>
           </button>
         </div>

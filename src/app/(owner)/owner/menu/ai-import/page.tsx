@@ -133,7 +133,7 @@ function AIMenuImportContent() {
           <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
             {isFromOnboarding ? (
               <Link href="/owner/onboarding">
-                <Button className="flex items-center gap-2 bg-[#8B4A27] hover:bg-[#743c1e] text-white">
+                <Button className="flex items-center gap-2 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white focus-visible:ring-2 focus-visible:ring-indigo-600">
                   <span>Continue Onboarding</span>
                   <ArrowRight className="h-4 w-4" />
                 </Button>

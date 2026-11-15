@@ -317,7 +317,7 @@ export const ONBOARDING_I18N: Record<OnboardingLocale, OnboardingStrings> = {
         helper: 'Your digital menu is ready. Going live makes your menu link active and generates your QR code.',
         buttonText: 'Go Live Now',
         publishing: 'Publishing your menu...',
-        notice: 'You will get a 14-day free trial immediately upon going live. No payment required today.',
+        notice: 'You will get a 24-hour free trial immediately upon going live. No payment required today.',
       },
       live: {
         question: 'Congratulations! Your menu is live!',
@@ -470,7 +470,7 @@ export const ONBOARDING_I18N: Record<OnboardingLocale, OnboardingStrings> = {
         helper: 'लाइव करने पर आपका लिंक सक्रिय हो जाएगा और क्यूआर कोड बन जाएगा।',
         buttonText: 'अभी लाइव करें',
         publishing: 'मेन्यू लाइव किया जा रहा है...',
-        notice: 'लाइव करते ही 14 दिनों का निःशुल्क परीक्षण शुरू होगा। आज कोई भुगतान नहीं।',
+        notice: 'लाइव करते ही 24 घंटे का निःशुल्क परीक्षण शुरू होगा। आज कोई भुगतान नहीं।',
       },
       live: {
         question: 'बधाई हो! आपका मेन्यू लाइव हो गया है!',

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { getOwnerLifecycle } from '@/lib/owner-lifecycle';
 import { TrialCountdownBanner } from '@/components/owner/TrialCountdownBanner';
+import { TrialUpgradeModal } from '@/components/owner/TrialUpgradeModal';
 import { OwnerHeader } from '@/components/owner/OwnerHeader';
 import { OwnerBottomNav } from '@/components/owner/OwnerBottomNav';
 
@@ -47,12 +48,20 @@ export default async function OwnerLayout({
     <div className="min-h-[100dvh] bg-[#FAF8F5] text-stone-900 flex flex-col font-sans">
       {/* 1. Real-time Trial & Subscription Countdown Banner (only for published restaurants) */}
       {activeRestaurant && activeRestaurant.status === 'published' && (
-        <TrialCountdownBanner
-          trialEndsAt={lifecycle.trialEndsAt || new Date().toISOString()}
-          siteStatus={lifecycle.siteStatus}
-          restaurantId={activeRestaurant.id}
-          subscriptionEndDate={lifecycle.subscriptionEndDate}
-        />
+        <>
+          <TrialCountdownBanner
+            trialEndsAt={lifecycle.trialEndsAt || new Date().toISOString()}
+            siteStatus={lifecycle.siteStatus}
+            restaurantId={activeRestaurant.id}
+            subscriptionEndDate={lifecycle.subscriptionEndDate}
+          />
+          {!isOnboarding &&
+            (lifecycle.state === 'trial_active' ||
+              lifecycle.siteStatus === 'trialing' ||
+              lifecycle.siteStatus === 'trial_ending') && (
+              <TrialUpgradeModal restaurantId={activeRestaurant.id} />
+            )}
+        </>
       )}
 
       {/* 2. Owner Header with Single Restaurant Identity */}

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { Restaurant, SiteStatus } from '@/types/database';
 
@@ -30,8 +31,11 @@ export interface OwnerLifecycleResult {
 /**
  * Evaluates the full owner lifecycle state for the current authenticated owner.
  * Strictly resolves only non-archived restaurants (`archived_at IS NULL`).
+ * Wrapped in React.cache to deduplicate across layout and page rendering in a single request.
  */
-export async function getOwnerLifecycle(providedProfileId?: string): Promise<OwnerLifecycleResult> {
+export const getOwnerLifecycle = cache(async function getOwnerLifecycle(
+  providedProfileId?: string
+): Promise<OwnerLifecycleResult> {
   const supabase = await createClient();
   let profileId: string | null = providedProfileId || null;
 
@@ -335,4 +339,4 @@ export async function getOwnerLifecycle(providedProfileId?: string): Promise<Own
     isLive: false,
     siteStatus: 'expired',
   };
-}
+});

@@ -43,18 +43,19 @@ export default async function OwnerDashboardPage() {
 
   const supabase = await createClient();
 
-  // Fetch counts for the restaurant
-  const { count: catCount } = await supabase
-    .from('menu_categories')
-    .select('*', { count: 'exact', head: true })
-    .eq('restaurant_id', restaurant.id)
-    .eq('is_active', true);
-
-  const { count: itmCount } = await supabase
-    .from('menu_items')
-    .select('*', { count: 'exact', head: true })
-    .eq('restaurant_id', restaurant.id)
-    .eq('is_available', true);
+  // Fetch category and item counts in parallel
+  const [{ count: catCount }, { count: itmCount }] = await Promise.all([
+    supabase
+      .from('menu_categories')
+      .select('*', { count: 'exact', head: true })
+      .eq('restaurant_id', restaurant.id)
+      .eq('is_active', true),
+    supabase
+      .from('menu_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('restaurant_id', restaurant.id)
+      .eq('is_available', true),
+  ]);
 
   const categoryCount = catCount || 0;
   const itemCount = itmCount || 0;
@@ -216,7 +217,7 @@ export default async function OwnerDashboardPage() {
               href={publicUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2.5 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-2xl shadow-xs transition-all text-center flex items-center justify-center gap-1.5"
+              className="px-4 py-2.5 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-semibold rounded-2xl shadow-xs transition-all text-center flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             >
               <span>View Public Menu</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -319,7 +320,7 @@ export default async function OwnerDashboardPage() {
           </div>
           <Link
             href="/owner/menu"
-            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-[#8B4A27] hover:bg-[#723b1f] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press gap-1.5"
+            className="mt-4 inline-flex items-center justify-center px-4 py-2 bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] text-white text-xs font-semibold rounded-xl shadow-xs transition-all apple-press gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
           >
             <span>Open Menu Manager</span>
             <ArrowRight className="w-3.5 h-3.5" />

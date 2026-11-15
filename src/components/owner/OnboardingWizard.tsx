@@ -69,6 +69,7 @@ import {
   AlertCircle,
   RefreshCw,
   Edit2,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface OnboardingWizardProps {
@@ -123,6 +124,7 @@ export function OnboardingWizard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showManualMenuSetup, setShowManualMenuSetup] = useState(false);
 
   // --- Step 1 state ---
   const [name, setName] = useState(initialRestaurant?.name || '');
@@ -1026,16 +1028,131 @@ export function OnboardingWizard({
         )}
 
         {/* ================= STEP 3: MENU ================= */}
-        {subStep === '3a' && (
-          <div className="space-y-4 animate-in fade-in duration-200">
+        {subStep === '3a' && !showManualMenuSetup && (
+          <div className="space-y-5 animate-in fade-in duration-200">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-11 h-11 rounded-2xl bg-amber-100/90 border border-amber-300/70 text-[#8B4A27] flex items-center justify-center shadow-xs">
+                <div className="w-11 h-11 rounded-2xl bg-indigo-100/90 border border-indigo-300/70 text-indigo-700 flex items-center justify-center shadow-xs">
                   <UtensilsCrossed className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#8B4A27] bg-[#8B4A27]/5 px-2.5 py-1 rounded-full border border-[#8B4A27]/20">
-                  Menu Category
+                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200/80">
+                  Step 3 · Menu Setup
                 </span>
+              </div>
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
+                How would you like to build your menu?
+              </h1>
+              <p className="text-base text-stone-600 mt-2">
+                Choose the fastest way to get your items online. You can edit dishes, photos, and prices anytime.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3.5 pt-2">
+              {/* Option 1: AI / OCR Import */}
+              <Link
+                href={`/owner/menu/ai-import?from=onboarding${restaurant ? `&restaurantId=${restaurant.id}` : ''}`}
+                className="group p-5 bg-white border-2 border-stone-200 hover:border-indigo-600 rounded-3xl transition-all shadow-xs hover:shadow-md active:scale-[0.99] flex items-start gap-4 cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Camera className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base sm:text-lg font-bold text-stone-900 group-hover:text-indigo-700 transition-colors">
+                      Snap Photo or Upload PDF
+                    </h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shrink-0">
+                      AI Instant OCR
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-stone-500 mt-1 leading-relaxed">
+                    Upload photos of your printed menu or PDF. Our AI automatically extracts categories, dish names, and prices in seconds.
+                  </p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-stone-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all self-center shrink-0" />
+              </Link>
+
+              {/* Option 2: CSV Spreadsheet Import */}
+              <Link
+                href={`/owner/menu/ai-import?tab=csv&from=onboarding${restaurant ? `&restaurantId=${restaurant.id}` : ''}`}
+                className="group p-5 bg-white border-2 border-stone-200 hover:border-indigo-600 rounded-3xl transition-all shadow-xs hover:shadow-md active:scale-[0.99] flex items-start gap-4 cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <FileSpreadsheet className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base sm:text-lg font-bold text-stone-900 group-hover:text-indigo-700 transition-colors">
+                      Upload CSV Spreadsheet
+                    </h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shrink-0">
+                      Bulk Upload
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-stone-500 mt-1 leading-relaxed">
+                    Have your menu in Excel or Google Sheets? Export to CSV and import your entire catalog at once.
+                  </p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-stone-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all self-center shrink-0" />
+              </Link>
+
+              {/* Option 3: Manual Entry */}
+              <button
+                type="button"
+                onClick={() => setShowManualMenuSetup(true)}
+                className="group p-5 bg-white border-2 border-stone-200 hover:border-indigo-600 rounded-3xl transition-all shadow-xs hover:shadow-md active:scale-[0.99] flex items-start gap-4 text-left cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-stone-100 border border-stone-200 text-stone-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Edit2 className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base sm:text-lg font-bold text-stone-900 group-hover:text-indigo-700 transition-colors">
+                      Enter Dishes Manually
+                    </h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 border border-stone-200 shrink-0">
+                      Step by Step
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-stone-500 mt-1 leading-relaxed">
+                    Add categories and dishes one by one. Ideal if you want to start with just your top 2 or 3 bestsellers.
+                  </p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-stone-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all self-center shrink-0" />
+              </button>
+            </div>
+
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => advanceToSubStep('4a', 41)}
+                className="text-xs font-semibold text-stone-500 hover:text-stone-800 hover:underline py-2 cursor-pointer"
+              >
+                Skip menu for now (setup later from dashboard) →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {subStep === '3a' && showManualMenuSetup && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-100/90 border border-indigo-300/70 text-indigo-700 flex items-center justify-center shadow-xs">
+                    <UtensilsCrossed className="w-5 h-5" />
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200/80">
+                    Menu Category
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowManualMenuSetup(false)}
+                  className="text-xs font-semibold text-indigo-700 hover:underline cursor-pointer"
+                >
+                  ← All menu options
+                </button>
               </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
                 {t.step3.category.question}
@@ -1058,7 +1175,7 @@ export function OnboardingWizard({
                   onChange={(e) => setCategoryName(e.target.value)}
                   onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                   placeholder={t.step3.category.placeholder}
-                  className="w-full min-h-[56px] h-14 text-base sm:text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#8B4A27]"
+                  className="w-full min-h-[56px] h-14 text-base sm:text-lg px-4 bg-white border-2 border-stone-300 rounded-2xl focus:outline-hidden focus:border-[#4338CA]"
                   autoFocus
                 />
               </div>
@@ -1074,7 +1191,7 @@ export function OnboardingWizard({
                       key={chip}
                       type="button"
                       onClick={() => setCategoryName(chip)}
-                      className="min-h-[44px] px-4 py-2 text-sm font-medium bg-white border border-stone-300 hover:border-[#8B4A27] hover:bg-[#8B4A27]/5 text-stone-800 rounded-full transition-all active:scale-[0.97] touch-manipulation cursor-pointer"
+                      className="min-h-[44px] px-4 py-2 text-sm font-medium bg-white border border-stone-300 hover:border-indigo-600 hover:bg-indigo-50 text-stone-800 rounded-full transition-all active:scale-[0.97] touch-manipulation cursor-pointer"
                     >
                       + {chip}
                     </button>
@@ -1370,7 +1487,7 @@ export function OnboardingWizard({
             </div>
 
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-900 mt-4 leading-relaxed">
-              <span className="font-bold block mb-1">14-Day Free Trial</span>
+              <span className="font-bold block mb-1">24-Hour Free Trial</span>
               {t.step5.ready.notice}
             </div>
           </div>
@@ -1557,12 +1674,12 @@ export function OnboardingWizard({
               </div>
             )}
 
-            {subStep === '3a' && (
+            {subStep === '3a' && showManualMenuSetup && (
               <button
                 type="button"
                 onClick={handleStep3aContinue}
                 disabled={loading}
-                className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[56px] text-lg font-semibold bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : t.navigation.continue}
                 {!loading && <ArrowRight className="w-5 h-5" />}
@@ -1574,7 +1691,7 @@ export function OnboardingWizard({
                 type="button"
                 onClick={handleStep3bContinue}
                 disabled={loading}
-                className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full min-h-[56px] text-lg font-semibold bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
               >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Add Dish & Continue'}
                 {!loading && <ArrowRight className="w-5 h-5" />}
@@ -1591,7 +1708,7 @@ export function OnboardingWizard({
               <button
                 type="button"
                 onClick={handleStep4Continue}
-                className="w-full min-h-[56px] text-lg font-semibold bg-neutral-900 hover:bg-neutral-800 active:scale-[0.98] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full min-h-[56px] text-lg font-semibold bg-[#4338CA] hover:bg-[#3730A3] active:bg-[#312E81] touch-manipulation text-white rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
               >
                 {t.step4.review.continueToGoLive}
                 <ArrowRight className="w-5 h-5" />
