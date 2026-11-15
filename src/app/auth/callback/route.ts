@@ -168,8 +168,8 @@ export async function GET(request: Request) {
       return redirectResponse;
     }
 
-    // For a normal website login (where default was /owner or /), route directly to /admin
-    if (safeNext === '/owner' || safeNext === '/') {
+    // For a normal website login or any owner path, route allowlisted admin directly to /admin
+    if (safeNext === '/owner' || safeNext === '/' || safeNext.startsWith('/owner')) {
       redirectResponse.headers.set('Location', `${publicOrigin}/admin`);
       return redirectResponse;
     }

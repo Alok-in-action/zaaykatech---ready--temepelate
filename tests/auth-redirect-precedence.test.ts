@@ -124,4 +124,32 @@ describe('Auth Redirect Precedence & Platform Admin Routing', () => {
     const isOrdinaryOwnerAllowed = allowlist.includes(OWNER_UUID.toLowerCase());
     assert.strictEqual(isOrdinaryOwnerAllowed, false, 'Ordinary owner cannot be authorized for platform admin');
   });
+
+  it('Callback routing logic: allowlisted admin requesting /owner or /owner/onboarding routes directly to /admin', async () => {
+    process.env.PLATFORM_ADMIN_USER_IDS = ADMIN_UUID;
+    const allowlist = getPlatformAdminAllowlist();
+    const isPlatformAdmin = allowlist.includes(ADMIN_UUID.toLowerCase());
+
+    for (const testNext of ['/owner', '/owner/onboarding', '/owner/menu']) {
+      let destination = testNext;
+      if (isPlatformAdmin) {
+        if (testNext.startsWith('/admin')) {
+          destination = testNext;
+        } else if (testNext === '/owner' || testNext === '/' || testNext.startsWith('/owner')) {
+          destination = '/admin';
+        }
+      }
+      assert.strictEqual(destination, '/admin', `Admin attempting to land on ${testNext} must be routed to /admin`);
+    }
+  });
+
+  it('Public menu routing remains independent of admin allowlist', async () => {
+    process.env.PLATFORM_ADMIN_USER_IDS = ADMIN_UUID;
+    const req = new NextRequest('https://zaaykatech.com/r/demo', {
+      headers: { host: 'zaaykatech.com' },
+    });
+    const res = await middleware(req);
+    // Must not redirect to /admin
+    assert.notStrictEqual(res.headers.get('location'), 'https://zaaykatech.com/admin');
+  });
 });

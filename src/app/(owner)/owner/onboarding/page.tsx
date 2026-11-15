@@ -1,6 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { getPlatformAdminAllowlist } from '@/lib/admin/auth';
 import { getOwnerLifecycle } from '@/lib/owner-lifecycle';
 import { getOwnerMenuData } from '@/actions/restaurant';
 import { OnboardingWizard } from '@/components/owner/OnboardingWizard';
@@ -16,6 +18,19 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const isExplicitEdit = resolvedSearchParams.edit === 'true';
   const isFreshPublish = resolvedSearchParams.fresh === 'true';
+
+  // Guard: Allowlisted platform admins must land on /admin and never be forced into onboarding
+  const adminAllowlist = getPlatformAdminAllowlist();
+  if (adminAllowlist.length > 0) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user && adminAllowlist.includes(user.id.toLowerCase())) {
+      redirect('/admin');
+    }
+  }
 
   const lifecycle = await getOwnerLifecycle();
 

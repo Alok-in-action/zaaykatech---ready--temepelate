@@ -44,6 +44,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(destination, request.url));
   }
 
+  // 1c. If authenticated user is an allowlisted platform admin, route /owner and /owner/* to /admin
+  if (url.pathname.startsWith('/owner') && user) {
+    const adminAllowlist = getPlatformAdminAllowlist();
+    const isPlatformAdmin = adminAllowlist.includes(user.id.toLowerCase());
+    if (isPlatformAdmin) {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
+  }
+
   // 2. Subdomain routing for multi-tenant custom domains / subdomains
   // e.g. "mycafe.zaaykatech.com" -> rewrite to "/r/mycafe"
   // Never rewrite platform domains: localhost, *.vercel.app, *.now.sh, *.netlify.app
