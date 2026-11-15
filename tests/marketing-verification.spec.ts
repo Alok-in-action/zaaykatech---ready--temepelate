@@ -45,6 +45,14 @@ test.describe('Marketing Website Conversion & Mobile Suite', () => {
     const workSection = page.locator('#work');
     await expect(workSection).toBeVisible();
 
+    // Verify "Trusted by Leading Cafes & Restaurants" uses text, not images
+    const trustedHeading = page.locator('h3:has-text("Trusted by Leading Cafes & Restaurants")');
+    await expect(trustedHeading).toBeVisible();
+    const logoCloudContainer = page.locator('#work .relative').first();
+    await expect(logoCloudContainer.locator('text=Cafe 950').first()).toBeAttached();
+    await expect(logoCloudContainer.locator('text=Madhuban').first()).toBeAttached();
+    await expect(logoCloudContainer.locator('img')).toHaveCount(0);
+
     const pricingSection = page.locator('#pricing');
     await expect(pricingSection).toBeVisible();
 

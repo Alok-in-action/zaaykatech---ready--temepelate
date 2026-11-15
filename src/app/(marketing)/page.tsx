@@ -86,14 +86,14 @@ const DEMO_IMAGE_LINKS: (string | null)[] = [
 ];
 
 const restaurantLogos = [
-  { alt: 'Cafe 950', src: '/logos/1.jpg' },
-  { alt: 'Madhuban', src: '/logos/2.jpg' },
-  { alt: 'Bombay Darbar', src: '/logos/3.jpg' },
-  { alt: 'Monto', src: '/logos/4.jpg' },
-  { alt: 'Anjushree', src: '/logos/5.jpg' },
-  { alt: "Makes'D", src: '/logos/6.jpg' },
-  { alt: 'The Grand Hotel', src: '/logos/7.jpg' },
-  { alt: 'Royal Feast', src: '/logos/8.jpg' },
+  { alt: 'Cafe 950' },
+  { alt: 'Madhuban' },
+  { alt: 'Bombay Darbar' },
+  { alt: 'Monto' },
+  { alt: 'Anjushree' },
+  { alt: "Makes'D" },
+  { alt: 'The Grand Hotel' },
+  { alt: 'Royal Feast' },
 ];
 
 const latestWorkData = [
