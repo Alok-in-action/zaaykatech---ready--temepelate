@@ -8,8 +8,11 @@ test.describe('Owner Experience, Trial Upgrade, Auth & Mobile Usability', () => 
     // Error banner renders decoded message
     await expect(page.locator('text=test_error')).toBeVisible();
 
-    // Check that ?error= was stripped from URL to prevent stale errors on reload
-    await page.waitForFunction(() => !window.location.search.includes('error'));
+    // Verify error parameter is preserved (not silently deleted via replaceState) so users can diagnose issues
+    expect(page.url()).toContain('error=test_error');
+
+    // Verify retry / fresh sign-in link is rendered
+    await expect(page.locator('text=Start fresh sign-in')).toBeVisible();
 
     // Check Google Login button
     const googleBtn = page.getByRole('button', { name: /continue with google/i });

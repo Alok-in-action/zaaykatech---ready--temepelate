@@ -37,38 +37,19 @@ export default function LoginPage() {
           setErrorMsg(err);
         }
       }
-
-      if (err) {
-        // Clean up error param from the URL so page refresh or retry doesn't persist stale error
-        const cleanUrl = new URL(window.location.href);
-        cleanUrl.searchParams.delete('error');
-        window.history.replaceState({}, '', cleanUrl.toString());
-      }
     }
   }, []);
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     try {
       setLoading(true);
       setErrorMsg(null);
-      const supabase = createClient();
-      const origin = window.location.origin;
-
       const params = new URLSearchParams(window.location.search);
       const rawNext = params.get('next') || '/owner';
       const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/owner';
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(safeNext)}`,
-        },
-      });
-
-      if (error) {
-        setErrorMsg(error.message);
-        setLoading(false);
-      }
+      // Use dedicated server-side OAuth initiator to set PKCE cookies via HTTP Set-Cookie headers
+      window.location.href = `/auth/login?next=${encodeURIComponent(safeNext)}`;
     } catch (err: unknown) {
       setErrorMsg((err as Error).message || 'Failed to initialize Google login');
       setLoading(false);
@@ -100,8 +81,30 @@ export default function LoginPage() {
         </div>
 
         {errorMsg && (
-          <div className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
-            {errorMsg}
+          <div className="mb-6 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex flex-col gap-1.5">
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-medium leading-relaxed">{errorMsg}</span>
+              <button
+                type="button"
+                onClick={() => setErrorMsg(null)}
+                className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 underline shrink-0 cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+            <div className="text-[11px] text-rose-600">
+              Need to retry?{' '}
+              <a
+                href={`/auth/login?next=${encodeURIComponent(
+                  typeof window !== 'undefined'
+                    ? new URLSearchParams(window.location.search).get('next') || '/owner'
+                    : '/owner'
+                )}`}
+                className="font-semibold underline hover:text-rose-800"
+              >
+                Start fresh sign-in
+              </a>
+            </div>
           </div>
         )}
 

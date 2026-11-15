@@ -7,6 +7,8 @@ import { getPlatformAdminAllowlist } from '@/lib/admin/auth';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
+  const errorParam = searchParams.get('error');
+  const errorDesc = searchParams.get('error_description');
   const rawNext = searchParams.get('next') || '/owner';
   // Strictly enforce safe internal redirect path (no protocol, no double slashes)
   const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/owner';
@@ -15,32 +17,81 @@ export async function GET(request: Request) {
   const forwardedHost = request.headers.get('x-forwarded-host');
   const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
   const isLocalEnv = process.env.NODE_ENV === 'development';
-  const publicOrigin = isLocalEnv
+  let publicOrigin = isLocalEnv
     ? origin
     : forwardedHost
     ? `${forwardedProto}://${forwardedHost}`
     : origin;
 
+  if (!isLocalEnv && (publicOrigin.includes('zaaykatech.com') || publicOrigin.includes('vercel.app'))) {
+    publicOrigin = 'https://zaaykatech.com';
+  }
+
+  if (errorParam) {
+    const message = errorDesc || errorParam;
+    return NextResponse.redirect(`${publicOrigin}/login?error=${encodeURIComponent(message)}`);
+  }
+
   if (!code) {
     return NextResponse.redirect(`${publicOrigin}/login?error=auth_code_missing`);
   }
 
-  const cookieStore = await cookies();
+  let cookieStore: any = null;
+  let requestCookies: Array<{ name: string; value: string }> = [];
+  try {
+    cookieStore = await cookies();
+    requestCookies = cookieStore.getAll();
+  } catch {
+    const rawCookie = request.headers.get('cookie') || '';
+    requestCookies = rawCookie
+      .split(';')
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .map((cookie) => {
+        const eqIdx = cookie.indexOf('=');
+        return eqIdx === -1
+          ? { name: cookie, value: '' }
+          : { name: cookie.slice(0, eqIdx).trim(), value: cookie.slice(eqIdx + 1).trim() };
+      });
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const isProd = process.env.NODE_ENV === 'production';
 
   // Prepare redirect response upfront so cookies from exchangeCodeForSession are written directly into its headers
   const redirectResponse = NextResponse.redirect(new URL(safeNext, publicOrigin));
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: {
+      path: '/',
+      sameSite: 'lax',
+      secure: isProd,
+    },
     cookies: {
       getAll() {
-        return cookieStore.getAll();
+        return requestCookies;
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
-          redirectResponse.cookies.set(name, value, options);
+          if (cookieStore) {
+            try {
+              cookieStore.set(name, value, {
+                ...options,
+                path: '/',
+                sameSite: 'lax',
+                secure: isProd,
+              });
+            } catch {
+              // Ignore if called in read-only scope
+            }
+          }
+          redirectResponse.cookies.set(name, value, {
+            ...options,
+            path: '/',
+            sameSite: 'lax',
+            secure: isProd,
+          });
         });
       },
     },

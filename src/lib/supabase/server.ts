@@ -7,7 +7,14 @@ export async function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
+  const isProd = process.env.NODE_ENV === 'production';
+
   return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: {
+      path: '/',
+      sameSite: 'lax',
+      secure: isProd,
+    },
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -15,7 +22,12 @@ export async function createClient() {
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, {
+              ...options,
+              path: '/',
+              sameSite: 'lax',
+              secure: isProd,
+            })
           );
         } catch {
           // The `setAll` method was called from a Server Component.

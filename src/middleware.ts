@@ -3,13 +3,30 @@ import { updateSession } from '@/lib/supabase/middleware';
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl;
-  const hostname = request.headers.get('host') || '';
+  const rawHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
+  const hostname = rawHost.split(':')[0].toLowerCase();
+
+  // Canonical apex domain redirect in production to prevent cookie segregation between www and apex
+  if (hostname === 'www.zaaykatech.com') {
+    const canonicalUrl = new URL(url.pathname + url.search, 'https://zaaykatech.com');
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
 
   // 0. Forward root requests with an auth code directly to /auth/callback
   if (url.pathname === '/' && url.searchParams.has('code')) {
-    const callbackUrl = new URL('/auth/callback', request.url);
+    const callbackUrl = new URL('/auth/callback', 'https://zaaykatech.com');
     callbackUrl.search = url.search;
     return NextResponse.redirect(callbackUrl);
+  }
+
+  // 0b. Bypass session refresh for authentication handshake endpoints
+  // Crucial: running getUser() or mutating request headers on /auth/callback can consume or invalidate PKCE verifier state
+  if (url.pathname.startsWith('/auth/callback') || url.pathname.startsWith('/auth/login')) {
+    const bypassResponse = NextResponse.next();
+    bypassResponse.headers.set('X-Content-Type-Options', 'nosniff');
+    bypassResponse.headers.set('X-Frame-Options', 'SAMEORIGIN');
+    bypassResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    return bypassResponse;
   }
 
   // 1. Session refresh with Supabase SSR

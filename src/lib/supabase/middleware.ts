@@ -10,8 +10,14 @@ export async function updateSession(request: NextRequest) {
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+  const isProd = process.env.NODE_ENV === 'production';
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookieOptions: {
+      path: '/',
+      sameSite: 'lax',
+      secure: isProd,
+    },
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -22,7 +28,12 @@ export async function updateSession(request: NextRequest) {
           request,
         });
         cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options)
+          response.cookies.set(name, value, {
+            ...options,
+            path: '/',
+            sameSite: 'lax',
+            secure: isProd,
+          })
         );
       },
     },
