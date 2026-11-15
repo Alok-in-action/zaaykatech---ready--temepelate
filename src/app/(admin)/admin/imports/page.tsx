@@ -36,12 +36,18 @@ export default async function AdminImportsPage() {
         <div className="flex items-start gap-3">
           <Cpu className="w-5 h-5 text-stone-600 shrink-0 mt-0.5" />
           <div className="text-xs text-stone-600 space-y-1">
-            <h4 className="font-bold text-stone-900 text-sm">Execution Model & Zero AI Tokens</h4>
+            <h4 className="font-bold text-stone-900 text-sm">Execution Model & Token Usage Telemetry</h4>
             <p>
-              ZaaykaTech uses a hybrid local extraction engine: digital PDF text layer extraction (via <code className="font-mono bg-stone-200/60 px-1 py-0.5 rounded">pdfjs-dist</code>) combined with client/server local OCR (via <code className="font-mono bg-stone-200/60 px-1 py-0.5 rounded">tesseract.js</code> WebAssembly) and Sharp image preprocessing.
+              ZaaykaTech uses a hybrid local extraction engine: digital PDF text layer extraction (via{' '}
+              <code className="font-mono bg-stone-200/60 px-1 py-0.5 rounded">pdfjs-dist</code>) combined
+              with client/server local OCR (via{' '}
+              <code className="font-mono bg-stone-200/60 px-1 py-0.5 rounded">tesseract.js</code>{' '}
+              WebAssembly) and Sharp image preprocessing.
             </p>
             <p className="font-medium text-stone-800">
-              No third-party paid LLM token API is used for menu extraction. AI token count is 0, and customer menu documents are never transmitted to external AI vendors.
+              Telemetry Status: Local OCR engine (0 external paid LLM tokens applicable). Customer menu
+              documents are processed locally without external LLM API fees. Any historical external LLM
+              usage prior to local engine implementation is untracked without vendor billing telemetry.
             </p>
           </div>
         </div>

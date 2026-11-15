@@ -24,6 +24,7 @@ export interface OverviewMetrics {
   // Financial totals (in INR rupees, converted from paise)
   capturedLiveTotal: number;
   capturedTestTotal: number;
+  unverifiedTotal: number;
   refundedTotal: number;
   netLiveCollected: number;
 
@@ -97,6 +98,8 @@ export interface AdminPaymentListItem {
   amountRupees: number;
   currency: string;
   isTestMode: boolean;
+  classification: 'live_verified' | 'test_mock' | 'unverified';
+  provenanceSource: string;
   status: string;
   externalPaymentId: string;
   idempotencyKey: string;
@@ -108,9 +111,10 @@ export interface AdminPaymentListItem {
 
 export interface PaymentReconciliationReport {
   totalPaymentsCount: number;
-  capturedPaymentsCount: number;
+  uniqueCapturedPaymentsCount: number;
   succeededRevenuePaise: number;
   testRevenuePaise: number;
+  unverifiedRevenuePaise: number;
   refundedRevenuePaise: number;
   mismatches: Array<{
     type: string;
@@ -127,6 +131,8 @@ export interface StorageObservabilityReport {
   totalSizeBytes: number;
   bucketName: string;
   bucketExists: boolean;
+  isPartialScan?: boolean;
+  scanNotice?: string;
   restaurantBreakdown: Array<{
     restaurantId: string;
     restaurantName: string;
@@ -148,6 +154,7 @@ export interface OCRObservabilityReport {
   failedJobsCount: number;
   rateLimitedJobsCount: number;
   localOcrEngine: string;
+  tokenUsageModel: string;
   recentJobs: Array<{
     id: string;
     restaurantId: string;
@@ -203,7 +210,11 @@ export interface SystemHealthReport {
   };
   paymentWebhook: {
     status: 'active' | 'inactive' | 'no_events';
+    credentialsConfigured: boolean;
+    syntheticVerificationPassed: boolean;
     lastReceivedAt: string | null;
+    lastSuccessfulProcessingAt: string | null;
+    liveIntegrationVerified: boolean;
   };
   externalMonitoring: {
     status: 'not_configured';

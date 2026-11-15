@@ -133,6 +133,24 @@ test.describe('Platform Admin Security & Observability Suite', () => {
       path: path.join(ARTIFACT_SCREENSHOTS_DIR, 'admin-overview-390px.png'),
       fullPage: false,
     });
+
+    // 9. Small Mobile 360px Viewport Verification
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(300);
+    const overflow360 = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+    });
+    expect(overflow360, 'Admin overview must not overflow horizontally on 360px').toBe(false);
+
+    // 10. Android 412px Viewport Verification
+    await page.setViewportSize({ width: 412, height: 915 });
+    await page.goto('/admin', { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(300);
+    const overflow412 = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+    });
+    expect(overflow412, 'Admin overview must not overflow horizontally on 412px').toBe(false);
   });
 
   test('Owner dashboard routes and existing public routes remain unaffected', async ({ page }) => {

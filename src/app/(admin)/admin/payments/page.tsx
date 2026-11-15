@@ -74,8 +74,16 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
             {formatRupees(report.succeededRevenuePaise)}
           </div>
           <div className="text-[11px] text-stone-400 mt-1">
-            {report.capturedPaymentsCount} verified live transactions
+            {report.uniqueCapturedPaymentsCount} unique verified transactions
           </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs">
+          <div className="text-xs font-semibold uppercase text-stone-500">Unverified / Unknown</div>
+          <div className="text-2xl font-serif font-bold text-amber-700 mt-1">
+            {formatRupees(report.unverifiedRevenuePaise)}
+          </div>
+          <div className="text-[11px] text-stone-400 mt-1">Lacks explicit live/test provenance</div>
         </div>
 
         <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs">
@@ -84,14 +92,6 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
             {formatRupees(report.refundedRevenuePaise)}
           </div>
           <div className="text-[11px] text-stone-400 mt-1">Local database status = refunded</div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs">
-          <div className="text-xs font-semibold uppercase text-stone-500">Net Collected Amount</div>
-          <div className="text-2xl font-serif font-bold text-emerald-700 mt-1">
-            {formatRupees(report.succeededRevenuePaise - report.refundedRevenuePaise)}
-          </div>
-          <div className="text-[11px] text-stone-400 mt-1">Excludes payment gateway fees</div>
         </div>
 
         <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs">
@@ -157,13 +157,20 @@ export default async function AdminPaymentsPage({ searchParams }: PageProps) {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      {p.isTestMode ? (
+                      {p.classification === 'live_verified' ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono font-semibold">
+                          LIVE VERIFIED
+                        </span>
+                      ) : p.classification === 'test_mock' ? (
                         <span className="px-2 py-0.5 rounded text-[10px] bg-stone-100 border border-stone-200 text-stone-600 font-mono">
-                          TEST
+                          TEST / MOCK
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono font-semibold">
-                          LIVE
+                        <span
+                          className="px-2 py-0.5 rounded text-[10px] bg-amber-50 border border-amber-200 text-amber-800 font-mono font-medium"
+                          title={p.provenanceSource}
+                        >
+                          UNVERIFIED
                         </span>
                       )}
                     </td>

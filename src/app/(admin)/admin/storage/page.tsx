@@ -54,6 +54,13 @@ export default async function AdminStoragePage() {
       </div>
 
       {/* Verified Real Metrics Grid */}
+      {report.isPartialScan && (
+        <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 flex items-center gap-2">
+          <Info className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>{report.scanNotice}</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl border border-stone-200/80 p-5 shadow-xs">
           <div className="flex items-center justify-between text-xs font-semibold uppercase text-stone-500">

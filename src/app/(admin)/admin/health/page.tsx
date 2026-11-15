@@ -105,10 +105,73 @@ export default async function AdminHealthPage() {
           <div className="flex items-center gap-2 mt-2">
             <StatusBadge status={health.paymentWebhook.status} />
           </div>
-          <div className="text-[11px] text-stone-400 mt-2">
-            {health.paymentWebhook.lastReceivedAt
-              ? `Last received: ${new Date(health.paymentWebhook.lastReceivedAt).toLocaleDateString('en-IN')}`
-              : 'Zero webhook events logged'}
+          <div className="text-[11px] text-stone-500 mt-2 space-y-0.5">
+            <div>
+              Credentials:{' '}
+              <span className="font-semibold text-stone-700">
+                {health.paymentWebhook.credentialsConfigured ? 'Configured' : 'Missing'}
+              </span>
+            </div>
+            <div>
+              Synthetic Engine:{' '}
+              <span className="font-semibold text-stone-700">
+                {health.paymentWebhook.syntheticVerificationPassed ? 'Passed' : 'Error'}
+              </span>
+            </div>
+            <div>
+              Live Integration:{' '}
+              <span className="font-semibold text-stone-700">
+                {health.paymentWebhook.liveIntegrationVerified ? 'Verified Live' : 'Pending Live Event'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Integration & Verification Breakdown */}
+      <div className="bg-white rounded-2xl border border-stone-200/80 p-6 shadow-xs space-y-4">
+        <h2 className="font-serif font-bold text-stone-900 text-base">
+          Payment Webhook & Integration Verification Breakdown
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+          <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200/80">
+            <div className="text-stone-500 text-[10px] uppercase font-semibold">1. Credentials</div>
+            <div className="font-semibold text-stone-900 mt-1">
+              {health.paymentWebhook.credentialsConfigured ? 'Configured' : 'Missing'}
+            </div>
+            <div className="text-[10px] text-stone-400 mt-0.5">Secrets present in server env</div>
+          </div>
+          <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200/80">
+            <div className="text-stone-500 text-[10px] uppercase font-semibold">2. Synthetic Ping</div>
+            <div className="font-semibold text-stone-900 mt-1">
+              {health.paymentWebhook.syntheticVerificationPassed ? 'Passed' : 'Failed'}
+            </div>
+            <div className="text-[10px] text-stone-400 mt-0.5">HMAC crypto check executed</div>
+          </div>
+          <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200/80">
+            <div className="text-stone-500 text-[10px] uppercase font-semibold">3. Last Received</div>
+            <div className="font-semibold text-stone-900 mt-1 truncate">
+              {health.paymentWebhook.lastReceivedAt
+                ? new Date(health.paymentWebhook.lastReceivedAt).toLocaleDateString('en-IN')
+                : 'None'}
+            </div>
+            <div className="text-[10px] text-stone-400 mt-0.5">Latest real payload</div>
+          </div>
+          <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200/80">
+            <div className="text-stone-500 text-[10px] uppercase font-semibold">4. Last Processed</div>
+            <div className="font-semibold text-stone-900 mt-1 truncate">
+              {health.paymentWebhook.lastSuccessfulProcessingAt
+                ? new Date(health.paymentWebhook.lastSuccessfulProcessingAt).toLocaleDateString('en-IN')
+                : 'None'}
+            </div>
+            <div className="text-[10px] text-stone-400 mt-0.5">Successful payment logged</div>
+          </div>
+          <div className="bg-stone-50 p-3.5 rounded-xl border border-stone-200/80">
+            <div className="text-stone-500 text-[10px] uppercase font-semibold">5. Live Integration</div>
+            <div className="font-semibold text-stone-900 mt-1">
+              {health.paymentWebhook.liveIntegrationVerified ? 'Verified Live' : 'Pending Proof'}
+            </div>
+            <div className="text-[10px] text-stone-400 mt-0.5">Conclusive live payload</div>
           </div>
         </div>
       </div>

@@ -55,8 +55,13 @@ export async function middleware(request: NextRequest) {
 
   // 3. Protected route enforcement for owner dashboard and platform admin
   if (url.pathname.startsWith('/owner') || url.pathname.startsWith('/admin')) {
+    const isLiveProduction =
+      process.env.VERCEL_ENV === 'production' ||
+      (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_TENANT !== 'true');
+
     const isTestHeader =
-      request.headers.has('x-test-admin-role') || request.headers.has('x-test-owner-role');
+      !isLiveProduction &&
+      (request.headers.has('x-test-admin-role') || request.headers.has('x-test-owner-role'));
 
     if (!user && !isTestHeader) {
       // In development or demo mode without live Supabase credentials configured,

@@ -53,13 +53,19 @@ export async function verifyPlatformAdmin(): Promise<AdminAuthResult> {
     error: authError,
   } = await supabase.auth.getUser();
 
-  // In local development or isolated automated tests, allow explicit test admin flag
+  // In local development or isolated automated tests, allow explicit test admin flag.
+  // In live production, test headers and development overrides are strictly forbidden.
+  const isLiveProduction =
+    process.env.VERCEL_ENV === 'production' ||
+    (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_TENANT !== 'true');
+
   const isDevOrTest =
-    process.env.NODE_ENV === 'development' ||
-    process.env.NODE_ENV === 'test' ||
-    process.env.ALLOW_DEMO_TENANT === 'true';
+    !isLiveProduction &&
+    (process.env.NODE_ENV === 'development' ||
+      process.env.NODE_ENV === 'test' ||
+      process.env.ALLOW_DEMO_TENANT === 'true');
   const allowDevAdmin =
-    process.env.ALLOW_DEV_ADMIN === 'true' && process.env.NODE_ENV !== 'production';
+    !isLiveProduction && process.env.ALLOW_DEV_ADMIN === 'true';
 
   if (!user || authError) {
     if (isDevOrTest) {

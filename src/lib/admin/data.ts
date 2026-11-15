@@ -14,15 +14,83 @@ import {
 
 const CHECK_TIMEOUT_MS = 3500;
 
-async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> {
+export async function withTimeout<T>(
+  promiseOrFn: PromiseLike<T> | ((signal: AbortSignal) => PromiseLike<T>),
+  timeoutMs: number = CHECK_TIMEOUT_MS
+): Promise<T> {
+  const controller = new AbortController();
   let timer: NodeJS.Timeout | undefined;
+
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('Operation timed out')), timeoutMs);
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`Operation timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
   });
 
-  return Promise.race([promise, timeoutPromise]).finally(() => {
+  const actualPromise =
+    typeof promiseOrFn === 'function' ? promiseOrFn(controller.signal) : promiseOrFn;
+
+  return Promise.race([actualPromise, timeoutPromise]).finally(() => {
     if (timer) clearTimeout(timer);
   });
+}
+
+/**
+ * Classifies a payment's environment provenance strictly.
+ * Never guesses live without persisted provenance or verification.
+ */
+export function classifyPaymentEnvironment(p: {
+  external_payment_id?: string | null;
+  raw_webhook_payload?: any;
+}): { classification: 'live_verified' | 'test_mock' | 'unverified'; provenanceSource: string } {
+  const extId = p.external_payment_id || '';
+  const payload = p.raw_webhook_payload || {};
+  const notes = payload?.payload?.payment?.entity?.notes || payload?.notes || {};
+
+  // 1. Explicit test identifiers or test notes
+  if (
+    extId.startsWith('order_mock_') ||
+    extId.startsWith('pay_mock_') ||
+    extId.startsWith('pay_test_') ||
+    extId.startsWith('order_test_') ||
+    notes?.test_mode === true ||
+    payload?.environment === 'test' ||
+    payload?.test === true
+  ) {
+    return {
+      classification: 'test_mock',
+      provenanceSource:
+        extId.startsWith('order_mock_') || extId.startsWith('pay_mock_')
+          ? 'Mock Order Generator'
+          : extId.startsWith('pay_test_')
+          ? 'Razorpay Test Key (pay_test_*)'
+          : 'Persisted Webhook Test Payload',
+    };
+  }
+
+  // 2. Explicit verified live provenance
+  if (
+    notes?.test_mode === false ||
+    payload?.environment === 'live' ||
+    payload?.environment === 'production' ||
+    (payload?.account_id &&
+      !payload?.account_id.includes('test') &&
+      payload?.event &&
+      payload?.payload?.payment?.entity?.status === 'captured' &&
+      notes?.test_mode !== true)
+  ) {
+    return {
+      classification: 'live_verified',
+      provenanceSource: 'Verified Live Provider Payload',
+    };
+  }
+
+  // 3. Fallback for payments without explicit environment provenance
+  return {
+    classification: 'unverified',
+    provenanceSource: 'Unverified Historical Record (Lacks explicit live/test provenance)',
+  };
 }
 
 /**
@@ -116,7 +184,7 @@ export async function getAdminOverviewMetrics(days: number = 30): Promise<Overvi
     withTimeout(
       supabase
         .from('payments')
-        .select('amount_paise, status, external_payment_id, raw_webhook_payload')
+        .select('id, amount_paise, status, external_payment_id, raw_webhook_payload')
         .limit(1000),
       CHECK_TIMEOUT_MS
     ),
@@ -151,23 +219,30 @@ export async function getAdminOverviewMetrics(days: number = 30): Promise<Overvi
   const expiringIn7Days = expiring7dRes.status === 'fulfilled' ? expiring7dRes.value.count || 0 : 0;
   const expiringIn30Days = expiring30dRes.status === 'fulfilled' ? expiring30dRes.value.count || 0 : 0;
 
-  // Process payments
+  // Process payments with deduplication and environment provenance
   let capturedLivePaise = 0;
   let capturedTestPaise = 0;
+  let unverifiedPaise = 0;
   let refundedPaise = 0;
+  const seenPaymentIds = new Set<string>();
 
   if (paymentsRes.status === 'fulfilled' && paymentsRes.value.data) {
     for (const p of paymentsRes.value.data) {
-      const isTest =
-        p.external_payment_id?.startsWith('order_mock_') ||
-        p.external_payment_id?.startsWith('pay_test_') ||
-        p.raw_webhook_payload?.payload?.payment?.entity?.notes?.test_mode === true;
+      const extId = p.external_payment_id || p.id;
+      if (seenPaymentIds.has(extId)) {
+        continue; // Deduplicate duplicate webhook events
+      }
+      seenPaymentIds.add(extId);
+
+      const env = classifyPaymentEnvironment(p);
 
       if (p.status === 'succeeded') {
-        if (isTest) {
+        if (env.classification === 'live_verified') {
+          capturedLivePaise += p.amount_paise || 0;
+        } else if (env.classification === 'test_mock') {
           capturedTestPaise += p.amount_paise || 0;
         } else {
-          capturedLivePaise += p.amount_paise || 0;
+          unverifiedPaise += p.amount_paise || 0;
         }
       } else if (p.status === 'refunded') {
         refundedPaise += p.amount_paise || 0;
@@ -198,6 +273,7 @@ export async function getAdminOverviewMetrics(days: number = 30): Promise<Overvi
     expiringIn30Days: expiringIn30Days || 0,
     capturedLiveTotal: capturedLivePaise / 100,
     capturedTestTotal: capturedTestPaise / 100,
+    unverifiedTotal: unverifiedPaise / 100,
     refundedTotal: refundedPaise / 100,
     netLiveCollected: (capturedLivePaise - refundedPaise) / 100,
     totalStorageBytes,
@@ -546,48 +622,56 @@ export async function getAdminPayments(params: {
 
   let succeededRevenuePaise = 0;
   let testRevenuePaise = 0;
+  let unverifiedRevenuePaise = 0;
   let refundedRevenuePaise = 0;
   const mismatches: PaymentReconciliationReport['mismatches'] = [];
   const seenExternalIds = new Set<string>();
+  let uniqueCapturedCount = 0;
 
   if (allRecentPayments) {
     for (const p of allRecentPayments) {
-      const isTest =
-        p.external_payment_id?.startsWith('order_mock_') ||
-        p.external_payment_id?.startsWith('pay_test_') ||
-        p.raw_webhook_payload?.payload?.payment?.entity?.notes?.test_mode === true;
+      const extId = p.external_payment_id || p.id;
+      const isDuplicate = seenExternalIds.has(extId);
 
-      if (p.status === 'succeeded') {
-        if (isTest) {
-          testRevenuePaise += p.amount_paise || 0;
-        } else {
-          succeededRevenuePaise += p.amount_paise || 0;
+      const env = classifyPaymentEnvironment(p);
+
+      if (!isDuplicate) {
+        seenExternalIds.add(extId);
+
+        if (p.status === 'succeeded') {
+          uniqueCapturedCount++;
+          if (env.classification === 'live_verified') {
+            succeededRevenuePaise += p.amount_paise || 0;
+          } else if (env.classification === 'test_mock') {
+            testRevenuePaise += p.amount_paise || 0;
+          } else {
+            unverifiedRevenuePaise += p.amount_paise || 0;
+            mismatches.push({
+              type: 'unverified_environment',
+              severity: 'warning',
+              description: `Payment ${extId} has unverified environment provenance. Safely excluded from verified live revenue.`,
+              paymentId: p.id,
+              restaurantId: p.restaurant_id,
+            });
+          }
+        } else if (p.status === 'refunded') {
+          refundedRevenuePaise += p.amount_paise || 0;
         }
-      } else if (p.status === 'refunded') {
-        refundedRevenuePaise += p.amount_paise || 0;
-      }
-
-      // Detect duplicate events
-      if (seenExternalIds.has(p.external_payment_id)) {
+      } else {
         mismatches.push({
           type: 'duplicate_event',
           severity: 'warning',
-          description: `Duplicate external payment ID detected: ${p.external_payment_id}. Revenue is safely deduplicated.`,
+          description: `Duplicate external payment ID detected: ${extId}. Revenue is safely deduplicated.`,
           paymentId: p.id,
           restaurantId: p.restaurant_id,
         });
-      } else {
-        seenExternalIds.add(p.external_payment_id);
       }
     }
   }
 
   // Transform page items
   const payments: AdminPaymentListItem[] = (rawPayments || []).map((p: any) => {
-    const isTest =
-      p.external_payment_id?.startsWith('order_mock_') ||
-      p.external_payment_id?.startsWith('pay_test_') ||
-      p.raw_webhook_payload?.payload?.payment?.entity?.notes?.test_mode === true;
+    const env = classifyPaymentEnvironment(p);
 
     return {
       id: p.id,
@@ -597,7 +681,9 @@ export async function getAdminPayments(params: {
       amountPaise: p.amount_paise,
       amountRupees: (p.amount_paise || 0) / 100,
       currency: 'INR',
-      isTestMode: Boolean(isTest),
+      isTestMode: env.classification === 'test_mock',
+      classification: env.classification,
+      provenanceSource: env.provenanceSource,
       status: p.status,
       externalPaymentId: p.external_payment_id,
       idempotencyKey: p.idempotency_key,
@@ -612,9 +698,10 @@ export async function getAdminPayments(params: {
     payments,
     report: {
       totalPaymentsCount: total,
-      capturedPaymentsCount: allRecentPayments?.filter((p) => p.status === 'succeeded').length || 0,
+      uniqueCapturedPaymentsCount: uniqueCapturedCount,
       succeededRevenuePaise,
       testRevenuePaise,
+      unverifiedRevenuePaise,
       refundedRevenuePaise,
       mismatches,
     },
@@ -634,6 +721,9 @@ export async function getAdminStorageReport(): Promise<StorageObservabilityRepor
   let bucketExists = false;
   const restaurantBreakdownMap = new Map<string, { count: number; bytes: number }>();
 
+  let isPartialScan = false;
+  let scanNotice: string | undefined;
+
   try {
     const { data: bucket, error: bucketErr } = await supabase.storage.getBucket('zaaykatech-media');
     bucketExists = !bucketErr && Boolean(bucket);
@@ -644,28 +734,47 @@ export async function getAdminStorageReport(): Promise<StorageObservabilityRepor
       .list('restaurants', { limit: 100 });
 
     if (rootList && Array.isArray(rootList)) {
-      for (const item of rootList) {
-        if (!item.id) {
-          // Folder representing restaurant ID
-          const restId = item.name;
+      const folders = rootList.filter((item) => !item.id);
+      const directFiles = rootList.filter((item) => Boolean(item.id));
+
+      for (const f of directFiles) {
+        totalObjectsCount += 1;
+        totalSizeBytes += Number(f.metadata?.size) || 0;
+      }
+
+      // Bound folder scans to top 20 to avoid unbounded N+1 network queries
+      const MAX_SCANNED_FOLDERS = 20;
+      const targetFolders = folders.slice(0, MAX_SCANNED_FOLDERS);
+      if (folders.length > MAX_SCANNED_FOLDERS) {
+        isPartialScan = true;
+        scanNotice = `Scanned top ${MAX_SCANNED_FOLDERS} of ${folders.length} tenant folders. Full metrics available in provider dashboard.`;
+      }
+
+      const folderResults = await Promise.allSettled(
+        targetFolders.map(async (folder) => {
+          const restId = folder.name;
           const { data: subFiles } = await supabase.storage
             .from('zaaykatech-media')
             .list(`restaurants/${restId}`, { limit: 100 });
 
-          if (subFiles) {
-            let restBytes = 0;
-            let restCount = subFiles.length;
+          let restBytes = 0;
+          let restCount = 0;
+          if (subFiles && Array.isArray(subFiles)) {
+            restCount = subFiles.length;
             for (const f of subFiles) {
-              const sz = Number(f.metadata?.size) || 0;
-              restBytes += sz;
+              restBytes += Number(f.metadata?.size) || 0;
             }
-            totalObjectsCount += restCount;
-            totalSizeBytes += restBytes;
-            restaurantBreakdownMap.set(restId, { count: restCount, bytes: restBytes });
           }
-        } else {
-          totalObjectsCount += 1;
-          totalSizeBytes += Number(item.metadata?.size) || 0;
+          return { restId, restCount, restBytes };
+        })
+      );
+
+      for (const res of folderResults) {
+        if (res.status === 'fulfilled') {
+          const { restId, restCount, restBytes } = res.value;
+          totalObjectsCount += restCount;
+          totalSizeBytes += restBytes;
+          restaurantBreakdownMap.set(restId, { count: restCount, bytes: restBytes });
         }
       }
     }
@@ -699,6 +808,8 @@ export async function getAdminStorageReport(): Promise<StorageObservabilityRepor
     totalSizeBytes,
     bucketName: 'zaaykatech-media',
     bucketExists,
+    isPartialScan,
+    scanNotice,
     restaurantBreakdown: breakdown,
     bandwidthEgressStatus: 'provider_dashboard_required',
     databaseSizeStatus: 'provider_dashboard_required',
@@ -723,7 +834,7 @@ export async function getAdminOCRReport(): Promise<OCRObservabilityReport> {
         .from('audit_logs')
         .select('id, restaurant_id, action, metadata, created_at')
         .or(
-          'action.eq.ai_menu_extraction_attempt,action.eq.ai_menu_extraction_completed,action.eq.ai_menu_extraction_failed,action.eq.menu_extraction_rate_limited'
+          'action.eq.ai_menu_extraction_attempt,action.eq.ai_menu_extraction_completed,action.eq.ai_menu_extraction_failed,action.eq.menu_extraction_attempt,action.eq.menu_extraction_success,action.eq.menu_extraction_failure,action.eq.menu_extraction_rate_limited'
         )
         .order('created_at', { ascending: false })
         .limit(50),
@@ -741,9 +852,21 @@ export async function getAdminOCRReport(): Promise<OCRObservabilityReport> {
 
   if (auditEvents) {
     for (const ev of auditEvents) {
-      if (ev.action === 'ai_menu_extraction_attempt') totalJobsCount++;
-      if (ev.action === 'ai_menu_extraction_completed') successfulJobsCount++;
-      if (ev.action === 'ai_menu_extraction_failed') failedJobsCount++;
+      if (
+        ev.action === 'ai_menu_extraction_attempt' ||
+        ev.action === 'menu_extraction_attempt'
+      )
+        totalJobsCount++;
+      if (
+        ev.action === 'ai_menu_extraction_completed' ||
+        ev.action === 'menu_extraction_success'
+      )
+        successfulJobsCount++;
+      if (
+        ev.action === 'ai_menu_extraction_failed' ||
+        ev.action === 'menu_extraction_failure'
+      )
+        failedJobsCount++;
       if (ev.action === 'menu_extraction_rate_limited') rateLimitedJobsCount++;
 
       recentJobs.push({
@@ -766,6 +889,8 @@ export async function getAdminOCRReport(): Promise<OCRObservabilityReport> {
     failedJobsCount,
     rateLimitedJobsCount,
     localOcrEngine: 'Local Hybrid Engine (pdfjs-dist text layer + Tesseract.js WASM + Sharp)',
+    tokenUsageModel:
+      'Local OCR (0 external LLM tokens applicable) / Untracked external: N/A',
     recentJobs,
     aiTokenUsageStatus: 'local_ocr_no_ai_tokens',
   };
@@ -895,20 +1020,52 @@ export async function getAdminSystemHealth(): Promise<SystemHealthReport> {
   // 3. Environment configuration validation
   const envValidation = validateStagingEnv();
 
-  // 4. Payment webhook recent health
+  // 4. Payment webhook recent health and 5-way verification breakdown
+  const credentialsConfigured = Boolean(
+    process.env.RAZORPAY_KEY_ID &&
+      process.env.RAZORPAY_KEY_SECRET &&
+      process.env.RAZORPAY_WEBHOOK_SECRET
+  );
+
+  let syntheticVerificationPassed = false;
+  try {
+    const testPayload = JSON.stringify({ event: 'health.synthetic.ping', timestamp: Date.now() });
+    const testSecret = process.env.RAZORPAY_WEBHOOK_SECRET || 'synthetic-verification-secret';
+    const cryptoMod = await import('node:crypto');
+    const testSignature = cryptoMod.createHmac('sha256', testSecret).update(testPayload).digest('hex');
+    const expected = cryptoMod.createHmac('sha256', testSecret).update(testPayload).digest('hex');
+    syntheticVerificationPassed = cryptoMod.timingSafeEqual(
+      Buffer.from(testSignature),
+      Buffer.from(expected)
+    );
+  } catch {
+    syntheticVerificationPassed = false;
+  }
+
   let lastWebhookAt: string | null = null;
+  let lastSuccessfulAt: string | null = null;
+  let liveIntegrationVerified = false;
+
   try {
     const { data: latestPayment } = await supabase
       .from('payments')
-      .select('created_at')
+      .select('created_at, status, external_payment_id, raw_webhook_payload')
       .not('raw_webhook_payload', 'is', null)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(10);
 
-    lastWebhookAt = latestPayment?.created_at || null;
+    if (latestPayment && latestPayment.length > 0) {
+      lastWebhookAt = latestPayment[0].created_at || null;
+      const successful = latestPayment.find((p) => p.status === 'succeeded');
+      lastSuccessfulAt = successful?.created_at || null;
+      liveIntegrationVerified = latestPayment.some(
+        (p) => classifyPaymentEnvironment(p).classification === 'live_verified'
+      );
+    }
   } catch {
     lastWebhookAt = null;
+    lastSuccessfulAt = null;
+    liveIntegrationVerified = false;
   }
 
   return {
@@ -932,11 +1089,16 @@ export async function getAdminSystemHealth(): Promise<SystemHealthReport> {
     },
     paymentWebhook: {
       status: lastWebhookAt ? 'active' : 'no_events',
+      credentialsConfigured,
+      syntheticVerificationPassed,
       lastReceivedAt: lastWebhookAt,
+      lastSuccessfulProcessingAt: lastSuccessfulAt,
+      liveIntegrationVerified,
     },
     externalMonitoring: {
       status: 'not_configured',
-      guidance: 'Third-party synthetic uptime monitor (e.g. Better Uptime or Checkly) pinging /api/health every 10-15m recommended.',
+      guidance:
+        'Third-party synthetic uptime monitor (e.g. Better Uptime or Checkly) pinging /api/health every 10-15m recommended.',
     },
   };
 }

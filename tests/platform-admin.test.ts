@@ -9,6 +9,8 @@ import {
   getAdminOCRReport,
   getAdminSecurityReport,
   getAdminSystemHealth,
+  classifyPaymentEnvironment,
+  withTimeout,
 } from '../src/lib/admin/data';
 
 test('Platform Admin Security: Cache-Control & Anti-Caching Headers', () => {
@@ -138,4 +140,68 @@ test('Platform Admin Health Report: Non-Trivial Dependency Checks', async () => 
   assert.ok(typeof health.database.latencyMs === 'number');
   assert.equal(health.storage.bucketName, 'zaaykatech-media');
   assert.equal(health.externalMonitoring.status, 'not_configured');
+  assert.ok(typeof health.paymentWebhook.credentialsConfigured === 'boolean');
+  assert.ok(typeof health.paymentWebhook.syntheticVerificationPassed === 'boolean');
+  assert.ok(typeof health.paymentWebhook.liveIntegrationVerified === 'boolean');
+});
+
+test('Platform Admin Payment Environment Provenance & Classification', () => {
+  // 1. Explicit mock order
+  const mockRes = classifyPaymentEnvironment({
+    external_payment_id: 'order_mock_12345',
+  });
+  assert.equal(mockRes.classification, 'test_mock');
+
+  // 2. Explicit razorpay test key
+  const testKeyRes = classifyPaymentEnvironment({
+    external_payment_id: 'pay_test_98765',
+  });
+  assert.equal(testKeyRes.classification, 'test_mock');
+
+  // 3. Webhook with test_mode note
+  const testNoteRes = classifyPaymentEnvironment({
+    external_payment_id: 'pay_abc123',
+    raw_webhook_payload: { payload: { payment: { entity: { notes: { test_mode: true } } } } },
+  });
+  assert.equal(testNoteRes.classification, 'test_mock');
+
+  // 4. Verified live payload
+  const liveRes = classifyPaymentEnvironment({
+    external_payment_id: 'pay_live_555',
+    raw_webhook_payload: {
+      event: 'payment.captured',
+      account_id: 'acc_live_zaayka',
+      payload: { payment: { entity: { status: 'captured', notes: { test_mode: false } } } },
+    },
+  });
+  assert.equal(liveRes.classification, 'live_verified');
+
+  // 5. Unverified historical payload (lacks explicit live or test flags)
+  const unverifiedRes = classifyPaymentEnvironment({
+    external_payment_id: 'pay_U093CNqtmFjygp',
+    raw_webhook_payload: { orderId: 'order_123', paymentId: 'pay_U093CNqtmFjygp' },
+  });
+  assert.equal(unverifiedRes.classification, 'unverified');
+  assert.ok(unverifiedRes.provenanceSource.includes('Unverified Historical Record'));
+});
+
+test('Platform Admin withTimeout Helper Aborts on Delay', async () => {
+  let wasAborted = false;
+  await assert.rejects(
+    async () => {
+      await withTimeout(
+        (signal) =>
+          new Promise((resolve, reject) => {
+            signal.addEventListener('abort', () => {
+              wasAborted = true;
+              reject(new Error('Aborted by signal'));
+            });
+            setTimeout(resolve, 500);
+          }),
+        50
+      );
+    },
+    /timed out|Aborted/
+  );
+  assert.equal(wasAborted, true, 'AbortSignal must be triggered on timeout');
 });
