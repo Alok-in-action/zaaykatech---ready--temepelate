@@ -10,13 +10,17 @@ interface ThemeCustomizerProps {
   onChange: (updatedTheme: RestaurantTheme) => void;
 }
 
-const THEME_CARD_STYLES: Record<string, CardStyle> = {
+export const THEME_CARD_STYLES: Record<string, CardStyle> = {
   cappuccino: 'warm_editorial',
   'dark-coffee-luxury': 'modern_dark',
   botanical: 'minimalist',
   'minimal-editorial': 'minimalist',
   'terracotta-mediterranean': 'warm_editorial',
   'midnight-blue': 'modern_dark',
+  'cream-orange': 'warm_editorial',
+  'pure-monochrome': 'minimalist',
+  'soft-blush': 'warm_editorial',
+  'forest-gold': 'heritage',
 };
 
 const PRESET_PALETTES = PREDEFINED_THEMES.map((t) => ({
@@ -47,7 +51,7 @@ export function ThemeCustomizer({ theme, onChange }: ThemeCustomizerProps) {
         <div className="flex items-center gap-2 mb-3">
           <Palette className="w-4 h-4 text-[#8B4A27]" />
           <label className="text-xs font-semibold text-stone-800 tracking-tight">
-            Curated Design Presets (6 Themes)
+            Curated Design Presets (10 Themes)
           </label>
         </div>
 

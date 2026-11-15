@@ -14,6 +14,18 @@ import { createCategory } from '@/actions/category';
 import { createMenuItem } from '@/actions/item';
 import { MediaUploader } from './MediaUploader';
 import { ONBOARDING_I18N, OnboardingStrings } from '@/lib/i18n/onboarding';
+import { PREDEFINED_THEMES } from '@/lib/themes/predefinedThemes';
+import { THEME_CARD_STYLES } from './ThemeCustomizer';
+
+export const ONBOARDING_THEME_PRESETS = PREDEFINED_THEMES.map((t) => ({
+  id: t.id,
+  name: t.name,
+  desc: t.description,
+  primary: t.colors.primary,
+  accent: t.colors.accent,
+  bg: t.colors.background,
+  cardStyle: THEME_CARD_STYLES[t.id] || 'warm_editorial',
+}));
 
 const QRCodeGenerator = dynamic(
   () => import('./QRCodeGenerator').then((mod) => mod.QRCodeGenerator),
@@ -160,9 +172,10 @@ export function OnboardingWizard({
   );
 
   const defaultTheme: RestaurantTheme = {
-    primary_color: '#8B4A27',
-    accent_color: '#D2691E',
-    background_color: '#FAF8F5',
+    theme_id: 'cappuccino',
+    primary_color: '#914C2B',
+    accent_color: '#B86B3D',
+    background_color: '#F5EBDD',
     card_style: 'warm_editorial',
   };
 
@@ -346,42 +359,17 @@ export function OnboardingWizard({
   };
 
   // 2b: Preset Style Selection
-  const handlePresetSelect = (presetKey: 'warm' | 'minimal' | 'dark' | 'heritage') => {
-    let newTheme: RestaurantTheme;
-    switch (presetKey) {
-      case 'warm':
-        newTheme = {
-          primary_color: '#8B4A27',
-          accent_color: '#D2691E',
-          background_color: '#FAF8F5',
-          card_style: 'warm_editorial',
-        };
-        break;
-      case 'minimal':
-        newTheme = {
-          primary_color: '#1C1917',
-          accent_color: '#059669',
-          background_color: '#FFFFFF',
-          card_style: 'minimalist',
-        };
-        break;
-      case 'dark':
-        newTheme = {
-          primary_color: '#0F172A',
-          accent_color: '#D97706',
-          background_color: '#0B0F19',
-          card_style: 'modern_dark',
-        };
-        break;
-      case 'heritage':
-        newTheme = {
-          primary_color: '#780016',
-          accent_color: '#B45309',
-          background_color: '#FDFBF7',
-          card_style: 'heritage',
-        };
-        break;
-    }
+  const handlePresetSelect = (presetId: string) => {
+    const selected = ONBOARDING_THEME_PRESETS.find((p) => p.id === presetId);
+    if (!selected) return;
+
+    const newTheme: RestaurantTheme = {
+      theme_id: selected.id,
+      primary_color: selected.primary,
+      accent_color: selected.accent,
+      background_color: selected.bg,
+      card_style: selected.cardStyle,
+    };
     setTheme(newTheme);
   };
 
@@ -908,7 +896,7 @@ export function OnboardingWizard({
                   <Palette className="w-5 h-5" />
                 </div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/80">
-                  Visual Style
+                  Visual Style (10 Curated Themes)
                 </span>
               </div>
               <h1 className="font-serif text-2xl sm:text-3xl font-bold text-stone-900 leading-tight">
@@ -919,69 +907,46 @@ export function OnboardingWizard({
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              {[
-                {
-                  key: 'warm' as const,
-                  name: t.step2.style.presets.warm.name,
-                  desc: t.step2.style.presets.warm.desc,
-                  primary: '#8B4A27',
-                  accent: '#D2691E',
-                  bg: '#FAF8F5',
-                },
-                {
-                  key: 'minimal' as const,
-                  name: t.step2.style.presets.minimal.name,
-                  desc: t.step2.style.presets.minimal.desc,
-                  primary: '#1C1917',
-                  accent: '#059669',
-                  bg: '#FFFFFF',
-                },
-                {
-                  key: 'dark' as const,
-                  name: t.step2.style.presets.dark.name,
-                  desc: t.step2.style.presets.dark.desc,
-                  primary: '#0F172A',
-                  accent: '#D97706',
-                  bg: '#0B0F19',
-                },
-                {
-                  key: 'heritage' as const,
-                  name: t.step2.style.presets.heritage.name,
-                  desc: t.step2.style.presets.heritage.desc,
-                  primary: '#780016',
-                  accent: '#B45309',
-                  bg: '#FDFBF7',
-                },
-              ].map((preset) => {
-                const isSelected = theme.primary_color === preset.primary;
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 max-h-[460px] overflow-y-auto pr-1">
+              {ONBOARDING_THEME_PRESETS.map((preset) => {
+                const isSelected =
+                  theme.theme_id === preset.id ||
+                  (theme.primary_color?.toLowerCase() === preset.primary.toLowerCase() &&
+                    theme.background_color?.toLowerCase() === preset.bg.toLowerCase());
+
                 return (
                   <button
-                    key={preset.key}
+                    key={preset.id}
                     type="button"
-                    onClick={() => handlePresetSelect(preset.key)}
-                    className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between cursor-pointer ${
+                    onClick={() => handlePresetSelect(preset.id)}
+                    className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between cursor-pointer relative ${
                       isSelected
-                        ? 'border-[#8B4A27] bg-[#8B4A27]/5 shadow-xs'
+                        ? 'border-indigo-600 bg-indigo-50/25 shadow-xs ring-1 ring-indigo-600/30'
                         : 'border-stone-200 bg-white hover:border-stone-300'
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 mb-3">
+                    {isSelected && (
+                      <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                        <Check className="w-3 h-3 stroke-[2.5]" />
+                      </span>
+                    )}
+
+                    <div className="flex items-center gap-1.5 mb-2.5">
                       <span
-                        className="w-6 h-6 rounded-full border border-black/10"
+                        className="w-5 h-5 rounded-full border border-black/10 shadow-xs shrink-0"
                         style={{ backgroundColor: preset.primary }}
                       />
                       <span
-                        className="w-4 h-4 rounded-full border border-black/10"
+                        className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs shrink-0"
                         style={{ backgroundColor: preset.accent }}
                       />
                       <span
-                        className="w-4 h-4 rounded-full border border-black/10"
+                        className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs shrink-0"
                         style={{ backgroundColor: preset.bg }}
                       />
                     </div>
                     <div>
-                      <div className="font-semibold text-base text-stone-900">{preset.name}</div>
+                      <div className="font-semibold text-sm sm:text-base text-stone-900">{preset.name}</div>
                       <div className="text-xs text-stone-500 mt-1 leading-snug">{preset.desc}</div>
                     </div>
                   </button>
@@ -1417,7 +1382,12 @@ export function OnboardingWizard({
                       style={{ backgroundColor: theme.primary_color }}
                     />
                     <span className="text-xs text-stone-600">
-                      Style: <strong className="text-stone-800">{theme.card_style}</strong>
+                      Theme:{' '}
+                      <strong className="text-stone-800">
+                        {ONBOARDING_THEME_PRESETS.find((p) => p.id === theme.theme_id)?.name ||
+                          theme.card_style ||
+                          'Cappuccino'}
+                      </strong>
                     </span>
                   </div>
                   <button
