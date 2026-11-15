@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
+import { getPlatformAdminAllowlist } from '@/lib/admin/auth';
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl;
@@ -32,11 +33,15 @@ export async function middleware(request: NextRequest) {
   // 1. Session refresh with Supabase SSR
   const { response, user } = await updateSession(request);
 
-  // 1b. If user is already authenticated and visits /login, route to dashboard or safe next
+  // 1b. If user is already authenticated and visits /login, route to appropriate portal
   if (url.pathname === '/login' && user) {
-    const rawNext = url.searchParams.get('next') || '/owner';
-    const safeNext = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/owner';
-    return NextResponse.redirect(new URL(safeNext, request.url));
+    const rawNext = url.searchParams.get('next');
+    const safeNext = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
+    const adminAllowlist = getPlatformAdminAllowlist();
+    const isPlatformAdmin = adminAllowlist.includes(user.id.toLowerCase());
+
+    const destination = isPlatformAdmin ? (safeNext || '/admin') : (safeNext || '/owner');
+    return NextResponse.redirect(new URL(destination, request.url));
   }
 
   // 2. Subdomain routing for multi-tenant custom domains / subdomains

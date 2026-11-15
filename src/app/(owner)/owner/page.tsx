@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getOwnerLifecycle } from '@/lib/owner-lifecycle';
+import { getPlatformAdminAllowlist } from '@/lib/admin/auth';
 import { RazorpayCheckoutButton } from '@/components/owner/billing/RazorpayCheckoutButton';
 import {
   Store,
@@ -26,8 +27,19 @@ export default async function OwnerDashboardPage() {
     throw new Error(lifecycle.error || 'Temporary database error retrieving restaurant. Please refresh to retry.');
   }
 
-  // 1. If owner has no restaurant, route directly to step 1
+  // 1. If user has no restaurant, route allowlisted admin to /admin or owner to onboarding
   if (lifecycle.state === 'no_restaurant') {
+    const adminAllowlist = getPlatformAdminAllowlist();
+    if (adminAllowlist.length > 0) {
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user && adminAllowlist.includes(user.id.toLowerCase())) {
+        redirect('/admin');
+      }
+    }
     redirect('/owner/onboarding');
   }
 

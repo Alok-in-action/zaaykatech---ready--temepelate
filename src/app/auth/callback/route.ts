@@ -158,13 +158,28 @@ export async function GET(request: Request) {
   const isPlatformAdmin = adminAllowlist.includes(user.id.toLowerCase());
 
   // Determine intelligent destination:
-  // 1. If destination is explicitly /admin (or user is an admin requesting /admin), send directly to /admin without requiring a restaurant
-  if (safeNext.startsWith('/admin') && isPlatformAdmin) {
-    redirectResponse.headers.set('Location', `${publicOrigin}/admin`);
+  // PRECEDENCE 1: Platform Admin Authority
+  // Evaluated BEFORE owner onboarding flow.
+  // Platform admins NEVER require a restaurant or subscription to enter /admin.
+  if (isPlatformAdmin) {
+    // If admin explicitly requested a specific safe internal admin subpath (e.g. /admin/payments), honor it
+    if (safeNext.startsWith('/admin')) {
+      redirectResponse.headers.set('Location', `${publicOrigin}${safeNext}`);
+      return redirectResponse;
+    }
+
+    // For a normal website login (where default was /owner or /), route directly to /admin
+    if (safeNext === '/owner' || safeNext === '/') {
+      redirectResponse.headers.set('Location', `${publicOrigin}/admin`);
+      return redirectResponse;
+    }
+
+    // If an admin explicitly requested another safe internal page (e.g. /pricing), honor that safe next
+    redirectResponse.headers.set('Location', `${publicOrigin}${safeNext}`);
     return redirectResponse;
   }
 
-  // 2. If destination is standard /owner, determine restaurant lifecycle state
+  // PRECEDENCE 2: Standard Restaurant Owner Lifecycle
   if (safeNext === '/owner' && profileId) {
     const { data: activeRest } = await serviceClient
       .from('restaurants')
